@@ -182,11 +182,11 @@ HOME_ID=$(wp post create \
 log "Created: Home (ID: $HOME_ID)"
 
 ABOUT_ID=$(wp post create \
-    --post_title="About Us" \
+    --post_title="About" \
     --post_status=publish \
     --post_type=page \
     --porcelain)
-log "Created: About Us (ID: $ABOUT_ID)"
+log "Created: About (ID: $ABOUT_ID)"
 
 QUOTE_ID=$(wp post create \
     --post_title="Free Quote" \
@@ -401,7 +401,7 @@ section "Creating Menus"
 
 PRIMARY_MENU_ID=$(wp menu create "Primary Menu" --porcelain)
 wp menu item add-post $PRIMARY_MENU_ID $HOME_ID  --title="Home"
-wp menu item add-post $PRIMARY_MENU_ID $ABOUT_ID --title="About Us"
+wp menu item add-post $PRIMARY_MENU_ID $ABOUT_ID --title="About"
 wp menu item add-post $PRIMARY_MENU_ID $QUOTE_ID --title="Free Quote"
 wp menu item add-post $PRIMARY_MENU_ID $CONTACT_ID --title="Contact"
 wp menu location assign $PRIMARY_MENU_ID primary
