@@ -407,11 +407,32 @@ wp menu item add-post $PRIMARY_MENU_ID $CONTACT_ID --title="Contact"
 wp menu location assign $PRIMARY_MENU_ID primary
 log "Primary menu created and assigned"
 
+# Footer Navigation menu (Column 1 — same as primary)
+FOOTER_NAV_ID=$(wp menu create "Footer Navigation" --porcelain)
+wp menu item add-post $FOOTER_NAV_ID $HOME_ID    --title="Home"
+wp menu item add-post $FOOTER_NAV_ID $ABOUT_ID   --title="About"
+wp menu item add-post $FOOTER_NAV_ID $CONTACT_ID --title="Contact"
+wp menu item add-post $FOOTER_NAV_ID $QUOTE_ID   --title="Free Quote"
+wp widget add nav_menu footer-widget-3 1 --nav_menu=$FOOTER_NAV_ID --title="Navigation"
+log "Footer Navigation menu created (Column 1)"
+
+# Footer Help menu (Column 3)
+FOOTER_HELP_ID=$(wp menu create "Footer Help" --porcelain)
+wp menu item add-post $FOOTER_HELP_ID $CONTACT_ID --title="Contact"
+wp menu item add-post $FOOTER_HELP_ID $QUOTE_ID   --title="Free Quote"
+wp widget add nav_menu footer-widget-6 1 --nav_menu=$FOOTER_HELP_ID --title="Help"
+log "Footer Help menu created (Column 3)"
+
+# Footer Contact block (Column 3, below Help)
+wp widget add block footer-widget-6 2 --content='<h2 style="font-size: 22px;">Contact</h2><a href="tel:10000000000">(000) 000-0000</a><a href="mailto:contact@SITE_DOMAIN">contact@SITE_DOMAIN</a><p><strong>Hours:</strong> Mon–Fri 8am–6pm, Sat 9am–4pm</p>'
+log "Footer Contact block added (Column 3)"
+
+# Footer legal menu (footer_menu location — Privacy + Terms)
 FOOTER_MENU_ID=$(wp menu create "Footer Menu" --porcelain)
 wp menu item add-post $FOOTER_MENU_ID $PRIVACY_ID --title="Privacy Policy"
 wp menu item add-post $FOOTER_MENU_ID $TERMS_ID   --title="Terms of Service"
 wp menu location assign $FOOTER_MENU_ID footer_menu
-log "Footer menu created and assigned"
+log "Footer legal menu created and assigned"
 
 # ============================================================
 # SUMMARY
