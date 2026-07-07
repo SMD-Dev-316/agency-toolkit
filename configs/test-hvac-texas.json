@@ -1,0 +1,14 @@
+{
+  "niche": "HVAC",
+  "brand_name": "Texas Climate Pros",
+  "site_url": "https://smdcli.teqly.net/SMDCli",
+  "wp_path": "/home/teqlynet/smdcli.teqly.net/SMDCli",
+  "services": [
+    "AC Repair",
+    "Furnace Installation"
+  ],
+  "cities": [
+    { "city": "Austin",  "state": "TX" },
+    { "city": "Dallas",  "state": "TX" }
+  ]
+}

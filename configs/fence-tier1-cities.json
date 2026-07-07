@@ -1,0 +1,50 @@
+{
+  "niche": "Fence Services",
+  "brand_name": "Triangle Fence Pros",
+  "site_url": "https://smdcli.teqly.net/SMDCli",
+  "wp_path": "/home/teqlynet/smdcli.teqly.net/SMDCli",
+  "phone": "000-000-0000",
+  "free_quote_url": "/free-quote/",
+  "sidebar_block_ref": 1824,
+  "placeholder_image_wide": "https://smdcli.teqly.net/SMDCli/wp-content/uploads/2026/05/placeholder-wide-narrow-1024x478.jpg",
+  "placeholder_image_rect": "https://smdcli.teqly.net/SMDCli/wp-content/uploads/2026/06/placeholder-image-rectangle.png",
+  "primary_city": "Raleigh",
+  "primary_state": "NC",
+  "services": [
+    "Fence Installation",
+    "Fence Repair",
+    "Wood Fence",
+    "Vinyl Fence",
+    "Chain Link Fence"
+  ],
+  "cities": [
+    {
+      "city": "Raleigh",
+      "state": "NC",
+      "county": "Wake County",
+      "nearby": ["Durham", "Cary", "Chapel Hill", "Apex", "Garner"],
+      "is_primary": true
+    },
+    {
+      "city": "Durham",
+      "state": "NC",
+      "county": "Durham County",
+      "nearby": ["Raleigh", "Cary", "Chapel Hill", "Hillsborough", "Mebane"],
+      "is_primary": false
+    },
+    {
+      "city": "Cary",
+      "state": "NC",
+      "county": "Wake County",
+      "nearby": ["Raleigh", "Apex", "Morrisville", "Durham", "Holly Springs"],
+      "is_primary": false
+    },
+    {
+      "city": "Chapel Hill",
+      "state": "NC",
+      "county": "Orange County",
+      "nearby": ["Durham", "Carrboro", "Hillsborough", "Raleigh", "Mebane"],
+      "is_primary": false
+    }
+  ]
+}

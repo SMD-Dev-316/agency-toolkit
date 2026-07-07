@@ -1,0 +1,102 @@
+{
+  "niche": "Drain Cleaning Services",
+  "brand_name": "Local Drain Expert",
+  "site_url": "https://localdrainexpert.com",
+  "wp_path": "/home/teqlynet/localdrainexpert.com",
+  "phone": "000-000-0000",
+  "free_quote_url": "/free-quote/",
+  "sidebar_block_ref": 5,
+  "banner_cta_ref": 6,
+  "placeholder_image_wide": "https://localdrainexpert.com/wp-content/uploads/placeholder-wide-narrow-1024x478.jpg",
+  "placeholder_image_rect": "https://localdrainexpert.com/wp-content/uploads/placeholder-image-rectangle.png",
+  "primary_city": "Louisville",
+  "primary_state": "KY",
+  "services": [
+    "Drain Cleaning",
+    "Clogged Drain Repair",
+    "Hydro Jetting",
+    "Sewer Drain Cleaning",
+    "Emergency Drain Service",
+    "Main Drain Cleaning",
+    "Kitchen Drain Cleaning"
+  ],
+  "cities": [
+    {
+      "city": "Louisville",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": ["Jeffersontown", "St. Matthews", "Shively", "Middletown", "Pleasure Ridge Park"],
+      "is_primary": true
+    },
+    {
+      "city": "Jeffersontown",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": ["Louisville", "Middletown", "Anchorage", "Fern Creek", "Okolona"],
+      "is_primary": false
+    },
+    {
+      "city": "St. Matthews",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": ["Louisville", "Anchorage", "Lyndon", "Middletown", "Jeffersontown"],
+      "is_primary": false
+    },
+    {
+      "city": "Shively",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": ["Louisville", "Pleasure Ridge Park", "Valley Station", "Okolona", "Fairdale"],
+      "is_primary": false
+    },
+    {
+      "city": "Pleasure Ridge Park",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": ["Louisville", "Shively", "Valley Station", "Fairdale", "Shepherdsville"],
+      "is_primary": false
+    },
+    {
+      "city": "Middletown",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": ["Louisville", "Jeffersontown", "Anchorage", "Lyndon", "La Grange"],
+      "is_primary": false
+    },
+    {
+      "city": "New Albany",
+      "state": "IN",
+      "county": "Floyd County",
+      "nearby": ["Louisville", "Jeffersonville", "Clarksville", "Sellersburg", "Floyds Knobs"],
+      "is_primary": false
+    },
+    {
+      "city": "Clarksville",
+      "state": "IN",
+      "county": "Clark County",
+      "nearby": ["Louisville", "Jeffersonville", "New Albany", "Sellersburg", "Charlestown"],
+      "is_primary": false
+    },
+    {
+      "city": "Jeffersonville",
+      "state": "IN",
+      "county": "Clark County",
+      "nearby": ["Louisville", "Clarksville", "New Albany", "Sellersburg", "Charlestown"],
+      "is_primary": false
+    },
+    {
+      "city": "Shepherdsville",
+      "state": "KY",
+      "county": "Bullitt County",
+      "nearby": ["Louisville", "Hillview", "Fairdale", "Pleasure Ridge Park", "Mount Washington"],
+      "is_primary": false
+    },
+    {
+      "city": "La Grange",
+      "state": "KY",
+      "county": "Oldham County",
+      "nearby": ["Louisville", "Crestwood", "Pewee Valley", "Prospect", "Middletown"],
+      "is_primary": false
+    }
+  ]
+}
