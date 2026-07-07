@@ -22,7 +22,7 @@ section() { echo -e "\n${BLUE}--- $1 ---${NC}"; }
 # ============================================================
 # CONFIGURATION — edit these paths once, leave them
 # ============================================================
-TOOLKIT_DIR="/home/teqlynet/agency-toolkit"
+TOOLKIT_DIR="/var/www/agency-toolkit"
 PLUGINS_DIR="$TOOLKIT_DIR/assets"
 
 # ============================================================
@@ -262,15 +262,15 @@ fi
 # ============================================================
 section "Importing Placeholder Images"
 
-PLACEHOLDER_SOURCE="/home/teqlynet/smdcli.teqly.net/SMDCli/wp-content/uploads"
+PLACEHOLDER_SOURCE="/var/www/agency-toolkit/assets"
 PLACEHOLDER_DEST="$WP_PATH/wp-content/uploads"
 
-cp "$PLACEHOLDER_SOURCE/2026/05/placeholder-wide-narrow-1024x478.jpg" "$PLACEHOLDER_DEST/" 2>/dev/null \
-    && wp media import "$PLACEHOLDER_DEST/placeholder-wide-narrow-1024x478.jpg" \
-    && log "Imported: placeholder-wide-narrow-1024x478.jpg" \
+cp "$PLACEHOLDER_SOURCE/placeholder wide narrow.jpg" "$PLACEHOLDER_DEST/" 2>/dev/null \
+    && wp media import "$PLACEHOLDER_DEST/placeholder wide narrow.jpg" \
+    && log "Imported: placeholder wide narrow.jpg" \
     || warn "Could not import placeholder-wide-narrow — copy manually"
 
-cp "$PLACEHOLDER_SOURCE/2026/06/placeholder-image-rectangle.png" "$PLACEHOLDER_DEST/" 2>/dev/null \
+cp "$PLACEHOLDER_SOURCE/placeholder-image-rectangle.png" "$PLACEHOLDER_DEST/" 2>/dev/null \
     && wp media import "$PLACEHOLDER_DEST/placeholder-image-rectangle.png" \
     && log "Imported: placeholder-image-rectangle.png" \
     || warn "Could not import placeholder-image-rectangle — copy manually"
@@ -309,7 +309,7 @@ ASTRA_COLORS="$TOOLKIT_DIR/templates/astra-color-palettes.json"
 if [ -f "$ASTRA_SETTINGS" ]; then
     cat > /tmp/import-astra.php << 'PHPEOF'
 <?php
-$settings = file_get_contents('/home/teqlynet/agency-toolkit/templates/astra-settings.json');
+$settings = file_get_contents('/var/www/agency-toolkit/templates/astra-settings.json');
 $settings_array = json_decode($settings, true);
 update_option('astra-settings', $settings_array);
 echo "Astra settings imported.\n";
@@ -323,7 +323,7 @@ fi
 if [ -f "$ASTRA_COLORS" ]; then
     cat > /tmp/import-astra-colors.php << 'PHPEOF'
 <?php
-$settings = file_get_contents('/home/teqlynet/agency-toolkit/templates/astra-color-palettes.json');
+$settings = file_get_contents('/var/www/agency-toolkit/templates/astra-color-palettes.json');
 $settings_array = json_decode($settings, true);
 update_option('astra-color-palettes', $settings_array);
 echo "Astra color palettes imported.\n";
@@ -344,7 +344,7 @@ FLYING_PRESS_CONFIG="$TOOLKIT_DIR/configs/flyingpress-config.json"
 if [ -f "$FLYING_PRESS_CONFIG" ]; then
     cat > /tmp/import-flyingpress.php << 'PHPEOF'
 <?php
-$config = json_decode(file_get_contents('/home/teqlynet/agency-toolkit/configs/flyingpress-config.json'), true);
+$config = json_decode(file_get_contents('/var/www/agency-toolkit/configs/flyingpress-config.json'), true);
 $existing = get_option('FLYING_PRESS_CONFIG', []);
 $preserve = ['license_key','license_active','license_status','cdn_url','flying_cdn_api_key','cf_api_key','cf_email','cf_zone_id','cf_page_caching','cf_cache_ruleset_id','cf_cache_rule_id','cf_cache_file_rule_id','cf_rewrite_ruleset_id','cf_rewrite_rule_id','cf_rules_version'];
 foreach ($preserve as $key) {
@@ -378,7 +378,7 @@ FREE_QUOTE_TEMPLATE="$TOOLKIT_DIR/templates/free-quote.html"
 if [ -f "$FREE_QUOTE_TEMPLATE" ]; then
     cat > /tmp/import-free-quote.php << 'PHPEOF'
 <?php
-$content = file_get_contents('/home/teqlynet/agency-toolkit/templates/free-quote.html');
+$content = file_get_contents('/var/www/agency-toolkit/templates/free-quote.html');
 $page_id = get_option('page_on_front');
 $result = $GLOBALS['wpdb']->get_var("SELECT ID FROM {$GLOBALS['wpdb']->posts} WHERE post_title = 'Free Quote' AND post_type = 'page' LIMIT 1");
 if ($result) {
