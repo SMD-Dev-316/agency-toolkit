@@ -174,47 +174,36 @@ log "Rank Math base configuration applied"
 # ============================================================
 section "Creating Standard Pages"
 
-HOME_ID=$(wp post create \
-    --post_title="Home" \
-    --post_status=publish \
-    --post_type=page \
-    --porcelain)
-log "Created: Home (ID: $HOME_ID)"
+# Helper: get existing page ID or create it
+get_or_create_page() {
+    local title="$1"
+    local existing_id
+    existing_id=$(wp post list --post_type=page --post_status=publish --fields=ID,post_title --format=csv | grep -i ",$title$" | cut -d, -f1 | head -1)
+    if [ -n "$existing_id" ]; then
+        warn "Page already exists: $title (ID: $existing_id)"
+        echo "$existing_id"
+    else
+        wp post create --post_title="$title" --post_status=publish --post_type=page --porcelain
+    fi
+}
 
-ABOUT_ID=$(wp post create \
-    --post_title="About" \
-    --post_status=publish \
-    --post_type=page \
-    --porcelain)
-log "Created: About (ID: $ABOUT_ID)"
+HOME_ID=$(get_or_create_page "Home")
+log "Home page ready (ID: $HOME_ID)"
 
-QUOTE_ID=$(wp post create \
-    --post_title="Free Quote" \
-    --post_status=publish \
-    --post_type=page \
-    --porcelain)
-log "Created: Free Quote (ID: $QUOTE_ID)"
+ABOUT_ID=$(get_or_create_page "About")
+log "About page ready (ID: $ABOUT_ID)"
 
-CONTACT_ID=$(wp post create \
-    --post_title="Contact" \
-    --post_status=publish \
-    --post_type=page \
-    --porcelain)
-log "Created: Contact (ID: $CONTACT_ID)"
+QUOTE_ID=$(get_or_create_page "Free Quote")
+log "Free Quote page ready (ID: $QUOTE_ID)"
 
-PRIVACY_ID=$(wp post create \
-    --post_title="Privacy Policy" \
-    --post_status=publish \
-    --post_type=page \
-    --porcelain)
-log "Created: Privacy Policy (ID: $PRIVACY_ID)"
+CONTACT_ID=$(get_or_create_page "Contact")
+log "Contact page ready (ID: $CONTACT_ID)"
 
-TERMS_ID=$(wp post create \
-    --post_title="Terms of Service" \
-    --post_status=publish \
-    --post_type=page \
-    --porcelain)
-log "Created: Terms of Service (ID: $TERMS_ID)"
+PRIVACY_ID=$(get_or_create_page "Privacy Policy")
+log "Privacy Policy page ready (ID: $PRIVACY_ID)"
+
+TERMS_ID=$(get_or_create_page "Terms of Service")
+log "Terms of Service page ready (ID: $TERMS_ID)"
 
 # Set static homepage
 wp option update show_on_front "page"
