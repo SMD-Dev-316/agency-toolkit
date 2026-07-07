@@ -424,7 +424,8 @@ wp widget add nav_menu footer-widget-6 1 --nav_menu=$FOOTER_HELP_ID --title="Hel
 log "Footer Help menu created (Column 3)"
 
 # Footer Contact block (Column 3, below Help)
-wp widget add block footer-widget-6 2 --content='<h2 style="font-size: 22px;">Contact</h2><a href="tel:10000000000">(000) 000-0000</a><a href="mailto:contact@SITE_DOMAIN">contact@SITE_DOMAIN</a><p><strong>Hours:</strong> Mon–Fri 8am–6pm, Sat 9am–4pm</p>'
+SITE_DOMAIN=$(wp option get siteurl | sed 's|https\?://||' | sed 's|www\.||')
+wp widget add block footer-widget-6 2 --content="<h2 style=\"font-size: 22px;\">Contact</h2><a href=\"tel:10000000000\">(000) 000-0000</a> <a href=\"mailto:contact@${SITE_DOMAIN}\">contact@${SITE_DOMAIN}</a><p><strong>Hours:</strong> Mon–Fri 8am–6pm, Sat 9am–4pm</p>" 
 log "Footer Contact block added (Column 3)"
 
 # Footer legal menu (footer_menu location — Privacy + Terms)
