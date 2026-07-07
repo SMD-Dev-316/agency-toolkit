@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 log()     { echo -e "${GREEN}[✓]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[!]${NC} $1"; }
+warn()    { echo -e "${YELLOW}[!]${NC} $1" >&2; }
 error()   { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 section() { echo -e "\n${BLUE}--- $1 ---${NC}"; }
 
@@ -388,7 +388,12 @@ fi
 # ============================================================
 section "Creating Menus"
 
-PRIMARY_MENU_ID=$(wp menu create "Primary Menu" --porcelain)
+PRIMARY_MENU_ID=$(wp menu list --format=csv | grep -i ",Primary Menu," | cut -d, -f1 | head -1)
+if [ -z "$PRIMARY_MENU_ID" ]; then
+    PRIMARY_MENU_ID=$(wp menu create "Primary Menu" --porcelain)
+else
+    warn "Menu already exists: Primary Menu (ID: $PRIMARY_MENU_ID)"
+fi
 wp menu item add-post $PRIMARY_MENU_ID $HOME_ID  --title="Home"
 wp menu item add-post $PRIMARY_MENU_ID $ABOUT_ID --title="About"
 wp menu item add-post $PRIMARY_MENU_ID $QUOTE_ID --title="Free Quote"
@@ -397,7 +402,12 @@ wp menu location assign $PRIMARY_MENU_ID primary
 log "Primary menu created and assigned"
 
 # Footer Navigation menu (Column 1 — same as primary)
-FOOTER_NAV_ID=$(wp menu create "Footer Navigation" --porcelain)
+FOOTER_NAV_ID=$(wp menu list --format=csv | grep -i ",Footer Navigation," | cut -d, -f1 | head -1)
+if [ -z "$FOOTER_NAV_ID" ]; then
+    FOOTER_NAV_ID=$(wp menu create "Footer Navigation" --porcelain)
+else
+    warn "Menu already exists: Footer Navigation (ID: $FOOTER_NAV_ID)"
+fi
 wp menu item add-post $FOOTER_NAV_ID $HOME_ID    --title="Home"
 wp menu item add-post $FOOTER_NAV_ID $ABOUT_ID   --title="About"
 wp menu item add-post $FOOTER_NAV_ID $CONTACT_ID --title="Contact"
@@ -406,7 +416,12 @@ wp widget add nav_menu footer-widget-3 1 --nav_menu=$FOOTER_NAV_ID --title="Navi
 log "Footer Navigation menu created (Column 1)"
 
 # Footer Help menu (Column 3)
-FOOTER_HELP_ID=$(wp menu create "Footer Help" --porcelain)
+FOOTER_HELP_ID=$(wp menu list --format=csv | grep -i ",Footer Help," | cut -d, -f1 | head -1)
+if [ -z "$FOOTER_HELP_ID" ]; then
+    FOOTER_HELP_ID=$(wp menu create "Footer Help" --porcelain)
+else
+    warn "Menu already exists: Footer Help (ID: $FOOTER_HELP_ID)"
+fi
 wp menu item add-post $FOOTER_HELP_ID $CONTACT_ID --title="Contact"
 wp menu item add-post $FOOTER_HELP_ID $QUOTE_ID   --title="Free Quote"
 wp widget add nav_menu footer-widget-6 1 --nav_menu=$FOOTER_HELP_ID --title="Help"
@@ -418,7 +433,12 @@ wp widget add block footer-widget-6 2 --content="<h2 style=\"font-size: 22px;\">
 log "Footer Contact block added (Column 3)"
 
 # Footer legal menu (footer_menu location — Privacy + Terms)
-FOOTER_MENU_ID=$(wp menu create "Footer Menu" --porcelain)
+FOOTER_MENU_ID=$(wp menu list --format=csv | grep -i ",Footer Menu," | cut -d, -f1 | head -1)
+if [ -z "$FOOTER_MENU_ID" ]; then
+    FOOTER_MENU_ID=$(wp menu create "Footer Menu" --porcelain)
+else
+    warn "Menu already exists: Footer Menu (ID: $FOOTER_MENU_ID)"
+fi
 wp menu item add-post $FOOTER_MENU_ID $PRIVACY_ID --title="Privacy Policy"
 wp menu item add-post $FOOTER_MENU_ID $TERMS_ID   --title="Terms of Service"
 wp menu location assign $FOOTER_MENU_ID footer_menu
