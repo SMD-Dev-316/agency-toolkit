@@ -178,7 +178,7 @@ section "Creating Standard Pages"
 get_or_create_page() {
     local title="$1"
     local existing_id
-    existing_id=$(wp post list --post_type=page --post_status=publish --fields=ID,post_title --format=csv | grep -i ",$title$" | cut -d, -f1 | head -1)
+    existing_id=$(wp post list --post_type=page --post_status=publish --fields=ID,post_title --format=csv | grep -i ",\"\?${title}\"\?$" | cut -d, -f1 | head -1)
     if [ -n "$existing_id" ]; then
         warn "Page already exists: $title (ID: $existing_id)"
         echo "$existing_id"
