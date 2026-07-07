@@ -23,7 +23,7 @@ import anthropic
 # ============================================================
 # SETUP
 # ============================================================
-load_dotenv('/home/teqlynet/agency-toolkit/.env')
+load_dotenv('/var/www/agency-toolkit/.env')
 client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
 GREEN  = '\033[0;32m'
