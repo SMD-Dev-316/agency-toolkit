@@ -114,9 +114,6 @@ for plugin in "${FREE_PLUGINS[@]}"; do
     fi
 done
 
-# LiteSpeed Cache — install but keep deactivated (activate when on LiteSpeed server)
-wp plugin deactivate litespeed-cache 2>/dev/null || true
-log "LiteSpeed Cache installed but deactivated (activate when hosting on LiteSpeed server)"
 
 # ============================================================
 # PRO PLUGINS (Local ZIPs)
@@ -130,7 +127,6 @@ PRO_PLUGINS=(
     "ultimate-addons-for-elementor-pro.zip"
     "rank-math-pro.zip"
     "fluent-forms-pro.zip"
-    "flying-press.zip"
 )
 
 for zip in "${PRO_PLUGINS[@]}"; do
@@ -144,8 +140,6 @@ for zip in "${PRO_PLUGINS[@]}"; do
     fi
 done
 
-# LiteSpeed Cache config intentionally skipped — plugin is installed but deactivated.
-# Flying Press handles optimization. Activate LiteSpeed Cache only when on a LiteSpeed server.
 
 # ============================================================
 # DISABLE COMMENTS GLOBALLY
@@ -326,29 +320,13 @@ else
 fi
 
 # ============================================================
-# FLYING PRESS CONFIG
+# LITESPEED CACHE
 # ============================================================
-section "Importing Flying Press Config"
+section "Confirming LiteSpeed Cache"
 
-FLYING_PRESS_CONFIG="$TOOLKIT_DIR/configs/flyingpress-config.json"
-
-if [ -f "$FLYING_PRESS_CONFIG" ]; then
-    cat > /tmp/import-flyingpress.php << 'PHPEOF'
-<?php
-$config = json_decode(file_get_contents('/var/www/agency-toolkit/configs/flyingpress-config.json'), true);
-$existing = get_option('FLYING_PRESS_CONFIG', []);
-$preserve = ['license_key','license_active','license_status','cdn_url','flying_cdn_api_key','cf_api_key','cf_email','cf_zone_id','cf_page_caching','cf_cache_ruleset_id','cf_cache_rule_id','cf_cache_file_rule_id','cf_rewrite_ruleset_id','cf_rewrite_rule_id','cf_rules_version'];
-foreach ($preserve as $key) {
-    if (isset($existing[$key])) $config[$key] = $existing[$key];
-}
-update_option('FLYING_PRESS_CONFIG', $config);
-echo "Flying Press config imported.\n";
-PHPEOF
-    wp eval-file /tmp/import-flyingpress.php
-    log "Flying Press config imported"
-else
-    warn "flyingpress-config.json not found at $FLYING_PRESS_CONFIG — skipping"
-fi
+wp plugin is-active litespeed-cache 2>/dev/null \
+    && log "LiteSpeed Cache active" \
+    || warn "LiteSpeed Cache not active — activate in WP Admin"
 
 # ============================================================
 # ELEMENTOR SETTINGS
@@ -465,7 +443,7 @@ echo " Banner Block:      ID $BANNER_ID"
 echo ""
 echo " MANUAL STEPS REMAINING:"
 echo " 1. Upload Pro ZIPs to $PLUGINS_DIR (if not done):"
-echo "    astra-child.zip | astra-pro.zip | spectra-pro.zip | ultimate-addons-for-elementor-pro.zip | rank-math-pro.zip | fluent-forms-pro.zip | flying-press.zip"
+echo "    astra-child.zip | astra-pro.zip | spectra-pro.zip | ultimate-addons-for-elementor-pro.zip | rank-math-pro.zip | fluent-forms-pro.zip"
 echo " 2. Update sidebar_block_ref in config JSON to: $SIDEBAR_ID"
 echo " 3. Update banner_cta_ref in config JSON to: $BANNER_ID"
 echo " 4. Update phone number in the sidebar reusable block when renting"
