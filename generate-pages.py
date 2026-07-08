@@ -1210,7 +1210,7 @@ def main():
     do_overviews = not args.only_service_pages
     do_services  = not args.only_overviews
 
-    total_overviews = len([c for c in cities if not c.get("is_primary")]) if do_overviews else 0
+    total_overviews = len(cities) if do_overviews else 0
     total_service   = len(services) * len(cities) if do_services else 0
 
     section(f"Rank & Rent Generator ‚Äî {config['niche']}")
@@ -1237,9 +1237,6 @@ def main():
     if do_overviews:
         section("City Overview Pages")
         for city_data in cities:
-            if city_data.get("is_primary"):
-                log(f"Skipping primary city overview (homepage covers it): {city_data['city']}")
-                continue
             try:
                 r = generate_city_overview_page(
                     city_data["city"], city_data["state"],
