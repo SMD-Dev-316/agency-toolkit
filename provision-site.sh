@@ -253,10 +253,12 @@ section "Importing Placeholder Images"
 
 PLACEHOLDER_SOURCE="/var/www/agency-toolkit/assets"
 PLACEHOLDER_DEST="$WP_PATH/wp-content/uploads"
+    mkdir -p "${WP_PATH}/wp-content/uploads/rar"
+    log "Created /uploads/rar/ for agency images"
 
-cp "$PLACEHOLDER_SOURCE/placeholder wide narrow.jpg" "$PLACEHOLDER_DEST/" 2>/dev/null \
-    && wp media import "$PLACEHOLDER_DEST/placeholder wide narrow.jpg" \
-    && log "Imported: placeholder wide narrow.jpg" \
+cp "$PLACEHOLDER_SOURCE/placeholder-wide-narrow.jpg" "$PLACEHOLDER_DEST/" 2>/dev/null \
+    && wp media import "$PLACEHOLDER_DEST/placeholder-wide-narrow.jpg" \
+    && log "Imported: placeholder-wide-narrow.jpg" \
     || warn "Could not import placeholder-wide-narrow — copy manually"
 
 cp "$PLACEHOLDER_SOURCE/placeholder-image-rectangle.png" "$PLACEHOLDER_DEST/" 2>/dev/null \
