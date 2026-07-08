@@ -1117,9 +1117,10 @@ def update_nav_menus(config):
                 except Exception as e:
                     warn(f"Could not add to Services menu: {service} — {e}")
 
-    # populate Service Areas dropdown
+    # populate Service Areas dropdown — primary city first, then rest
     if svc_areas_parent_id:
-        for city_data in cities:
+        sorted_cities = sorted(cities, key=lambda c: (0 if c.get("is_primary") else 1, cities.index(c)))
+        for city_data in sorted_cities:
             city  = city_data["city"]
             state = city_data["state"]
             if city in existing_areas:
@@ -1212,7 +1213,7 @@ def main():
     print(f"  Site:            {config['site_url']}")
     print(f"  Cities:          {len(cities)}")
     print(f"  Services:        {len(services)}")
-    print(f"  Overview pages:  {total_overviews}  (non-primary cities only)")
+    print(f"  Overview pages:  {total_overviews}")
     print(f"  Service pages:   {total_service}  ({len(services)} √ó {len(cities)} cities)")
     print(f"  Total:           {total_overviews + total_service} pages")
 
