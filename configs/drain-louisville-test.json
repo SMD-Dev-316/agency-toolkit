@@ -1,0 +1,225 @@
+{
+  "niche": "Drain Cleaning Services",
+  "brand_name": "Local Drain Expert",
+  "site_url": "https://rar01-1vyi.1wp.site",
+  "wp_path": "/var/www/rar01-1vyi.1wp.site",
+  "phone": "000-000-0000",
+  "free_quote_url": "/free-quote/",
+  "sidebar_block_ref": 100,
+  "banner_cta_ref": 101,
+  "primary_city": "Louisville",
+  "primary_state": "KY",
+  "services": [
+    "Drain Cleaning",
+    "Clogged Drain Repair",
+    "Hydro Jetting",
+    "Sewer Drain Cleaning",
+    "Emergency Drain Service",
+    "Main Drain Cleaning",
+    "Kitchen Drain Cleaning"
+  ],
+  "cities": [
+    {
+      "city": "Louisville",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": [
+        "Jeffersontown",
+        "St. Matthews",
+        "Shively",
+        "Middletown",
+        "Pleasure Ridge Park"
+      ],
+      "is_primary": true
+    },
+    {
+      "city": "Jeffersontown",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": [
+        "Louisville",
+        "Middletown",
+        "Anchorage",
+        "Fern Creek",
+        "Okolona"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "St. Matthews",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": [
+        "Louisville",
+        "Anchorage",
+        "Lyndon",
+        "Middletown",
+        "Jeffersontown"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "Shively",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": [
+        "Louisville",
+        "Pleasure Ridge Park",
+        "Valley Station",
+        "Okolona",
+        "Fairdale"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "Pleasure Ridge Park",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": [
+        "Louisville",
+        "Shively",
+        "Valley Station",
+        "Fairdale",
+        "Shepherdsville"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "Middletown",
+      "state": "KY",
+      "county": "Jefferson County",
+      "nearby": [
+        "Louisville",
+        "Jeffersontown",
+        "Anchorage",
+        "Lyndon",
+        "La Grange"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "New Albany",
+      "state": "IN",
+      "county": "Floyd County",
+      "nearby": [
+        "Louisville",
+        "Jeffersonville",
+        "Clarksville",
+        "Sellersburg",
+        "Floyds Knobs"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "Clarksville",
+      "state": "IN",
+      "county": "Clark County",
+      "nearby": [
+        "Louisville",
+        "Jeffersonville",
+        "New Albany",
+        "Sellersburg",
+        "Charlestown"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "Jeffersonville",
+      "state": "IN",
+      "county": "Clark County",
+      "nearby": [
+        "Louisville",
+        "Clarksville",
+        "New Albany",
+        "Sellersburg",
+        "Charlestown"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "Shepherdsville",
+      "state": "KY",
+      "county": "Bullitt County",
+      "nearby": [
+        "Louisville",
+        "Hillview",
+        "Fairdale",
+        "Pleasure Ridge Park",
+        "Mount Washington"
+      ],
+      "is_primary": false
+    },
+    {
+      "city": "La Grange",
+      "state": "KY",
+      "county": "Oldham County",
+      "nearby": [
+        "Louisville",
+        "Crestwood",
+        "Pewee Valley",
+        "Prospect",
+        "Middletown"
+      ],
+      "is_primary": false
+    }
+  ],
+  "rar_image_base": "https://rar01-1vyi.1wp.site/wp-content/uploads/rar/",
+  "service_images": {
+    "drain-cleaning": {
+      "wide": [
+        "wide-drain-cleaning-1.jpg",
+        "wide-drain-cleaning-2.jpg",
+        "wide-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-drain-cleaning.jpg"
+    },
+    "clogged-drain-repair": {
+      "wide": [
+        "wide-clogged-drain-repair-1.jpg",
+        "wide-clogged-drain-repair-2.jpg",
+        "wide-clogged-drain-repair-3.jpg"
+      ],
+      "rect": "rect-clogged-drain-repair.jpg"
+    },
+    "hydro-jetting": {
+      "wide": [
+        "wide-hydro-jetting-1.jpg",
+        "wide-hydro-jetting-2.jpg",
+        "wide-hydro-jetting-3.jpg"
+      ],
+      "rect": "rect-hydro-jetting.jpg"
+    },
+    "sewer-drain-cleaning": {
+      "wide": [
+        "wide-sewer-drain-cleaning-1.jpg",
+        "wide-sewer-drain-cleaning-2.jpg",
+        "wide-sewer-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-sewer-drain-cleaning.jpg"
+    },
+    "emergency-drain-service": {
+      "wide": [
+        "wide-emergency-drain-service-1.jpg",
+        "wide-emergency-drain-service-2.jpg",
+        "wide-emergency-drain-service-3.jpg"
+      ],
+      "rect": "rect-emergency-drain-service.jpg"
+    },
+    "main-drain-cleaning": {
+      "wide": [
+        "wide-main-drain-cleaning-1.jpg",
+        "wide-main-drain-cleaning-2.jpg",
+        "wide-main-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-main-drain-cleaning.jpg"
+    },
+    "kitchen-drain-cleaning": {
+      "wide": [
+        "wide-kitchen-drain-cleaning-1.jpg",
+        "wide-kitchen-drain-cleaning-2.jpg",
+        "wide-kitchen-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-kitchen-drain-cleaning.jpg"
+    }
+  }
+}

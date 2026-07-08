@@ -164,7 +164,7 @@ def build_uagb_separator(sep_id):
     )
 
 
-def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, is_last=False):
+def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text="", is_last=False):
     """H2 + wide image + paragraph + CTA + separator (one content block)."""
     sec_id  = gen_id()
     head_id = gen_id()
@@ -199,7 +199,7 @@ def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quot
         f'wp-block-uagb-image--layout-default wp-block-uagb-image--effect-static '
         f'wp-block-uagb-image--align-none">'
         f'<figure class="wp-block-uagb-image__figure">'
-        f'<img src="{img_url}" alt="" width="1024" height="478" loading="lazy" role="img"/>'
+        f'<img src="{img_url}" alt="{alt_text}" width="1024" height="478" loading="lazy" role="img"/>'
         f'</figure></div>\n'
         f'<!-- /wp:uagb/image -->\n'
         f'<!-- wp:paragraph -->\n<p>{paragraph}</p>\n<!-- /wp:paragraph -->\n'
@@ -279,7 +279,7 @@ def build_sidebar(sidebar_ref):
     )
 
 
-def build_service_card(service_name, description, service_url, img_url):
+def build_service_card(service_name, description, service_url, img_url, alt_text=""):
     """Single service card for city overview grid."""
     card_id   = gen_id()
     img_id    = gen_id()
@@ -327,7 +327,7 @@ def build_service_card(service_name, description, service_url, img_url):
         f'<div class="wp-block-uagb-image alignleft uagb-block-{img_id} '
         f'wp-block-uagb-image--layout-default wp-block-uagb-image--effect-static wp-block-uagb-image--align-left">'
         f'<figure class="wp-block-uagb-image__figure">'
-        f'<img src="{img_url}" alt="" width="402" height="260" '
+        f'<img src="{img_url}" alt="{alt_text}" width="402" height="260" '
         f'loading="lazy" role="img"/></figure></div>\n'
         f'<!-- /wp:uagb/image -->\n'
         f'<!-- wp:uagb/info-box {{"classMigrate":true,"block_id":"{ibox_id}",'
@@ -383,16 +383,24 @@ def build_service_card(service_name, description, service_url, img_url):
     )
 
 
-def build_individual_service_page(c, config):
+def build_individual_service_page(c, config, service="", city="", state=""):
     """
     Assemble the full block markup for an individual service/city page.
     c = content dict from generate_individual_content()
     """
-    img_url       = config.get("placeholder_image_wide", "")
     free_quote    = config.get("free_quote_url", "/free-quote/")
     phone         = config.get("phone", "000-000-0000")
     sidebar_ref      = config.get("sidebar_block_ref", 1824)
     banner_cta_ref   = config.get("banner_cta_ref", 2419)
+
+    svc_slug   = service.lower().replace(" ", "-").replace(",", "")
+    img_base   = config.get("rar_image_base", "")
+    svc_imgs   = config.get("service_images", {}).get(svc_slug, {})
+    wide       = svc_imgs.get("wide", ["", "", ""])
+    img_url_1  = img_base + wide[0] if len(wide) > 0 else ""
+    img_url_2  = img_base + wide[1] if len(wide) > 1 else ""
+    img_url_3  = img_base + wide[2] if len(wide) > 2 else ""
+    alt_text   = f"{service} in {city}, {state}" if city else ""
 
     faq_block = build_faq_block(c["faqs"])
 
@@ -401,17 +409,17 @@ def build_individual_service_page(c, config):
     s1 = build_content_section(
         c["section1_h2"], c["section1_paragraph"],
         c["section1_cta_title"], c["section1_cta_desc"],
-        img_url, free_quote
+        img_url_1, free_quote, alt_text
     )
     s2 = build_content_section(
         c["section2_h2"], c["section2_paragraph"],
         c["section2_cta_title"], c["section2_cta_desc"],
-        img_url, free_quote
+        img_url_2, free_quote, alt_text
     )
     s3 = build_content_section(
         c["section3_h2"], c["section3_paragraph"],
         c["section3_cta_title"], c["section3_cta_desc"],
-        img_url, free_quote
+        img_url_3, free_quote, alt_text
     )
     s4 = build_service_area_section(
         c["service_area_h2"], c["service_area_paragraph"],
@@ -470,10 +478,11 @@ def build_city_overview_page(c, services, config):
     Assemble the full block markup for a city overview page.
     c = content dict from generate_city_overview_content()
     """
-    img_url     = config.get("placeholder_image_rect", "")
     free_quote  = config.get("free_quote_url", "/free-quote/")
     sidebar_ref    = config.get("sidebar_block_ref", 1824)
     banner_cta_ref = config.get("banner_cta_ref", 2419)
+    img_base       = config.get("rar_image_base", "")
+    service_images = config.get("service_images", {})
 
     banner = build_banner(c["banner_h1"], c["banner_subtitle"], banner_cta_ref)
 
@@ -486,7 +495,10 @@ def build_city_overview_page(c, services, config):
         city_slug  = f"{primary_city.lower().replace(' ', '-')}-{primary_state.lower()}"
         svc_url    = f"/{svc_slug}-in-{city_slug}/"
         desc       = c["service_cards"][i]["description"] if i < len(c["service_cards"]) else ""
-        cards.append(build_service_card(svc, desc, svc_url, img_url))
+        rect_file  = service_images.get(svc_slug, {}).get("rect", "")
+        img_url    = img_base + rect_file if rect_file else ""
+        alt_text   = f"{svc} in {primary_city}, {primary_state}"
+        cards.append(build_service_card(svc, desc, svc_url, img_url, alt_text))
 
     grid_inner_id = gen_id()
     grid_outer_id = gen_id()
@@ -768,7 +780,7 @@ def generate_individual_service_page(service, city, state, config, city_data, up
     log(f"{'Updating' if existing_id else 'Creating'}: {title}")
 
     content_data = generate_individual_content(service, city, state, county, nearby, niche, brand)
-    page_markup  = build_individual_service_page(content_data, config)
+    page_markup  = build_individual_service_page(content_data, config, service, city, state)
     meta         = generate_seo_meta(focus_kw, city, state, brand)
 
     post_id = upsert_page(title, page_markup, wp_path, existing_id)
