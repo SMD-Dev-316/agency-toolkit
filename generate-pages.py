@@ -1049,9 +1049,30 @@ def generate_static_pages(config):
             widgets  = json.loads(existing) if existing.strip().startswith("[") else []
             if widgets:
                 wp(f"widget delete {widgets[0]['id']}", wp_path)
-            map_esc = shell_esc(map_html)
-            wp(f"widget add block footer-widget-4 1 --content='{map_esc}'", wp_path)
-            log(f"Footer map widget updated: {city}, {state}")
+            # Add blank widget then set content via eval-file (no shell quoting issues)
+            wp("widget add block footer-widget-4 1", wp_path)
+            after_raw = wp("widget list footer-widget-4 --format=json", wp_path)
+            after_widgets = json.loads(after_raw) if after_raw.strip().startswith("[") else []
+            if after_widgets:
+                instance_id = after_widgets[0]["id"].replace("block-", "")
+                block_content = f"<!-- wp:html -->{map_html}<!-- /wp:html -->"
+                block_php = block_content.replace("'", "\'")
+                php_script = (
+                    "<?php\n"
+                    f"$opts = get_option('widget_block');\n"
+                    f"$opts[{instance_id}]['content'] = '{block_php}';\n"
+                    "update_option('widget_block', $opts);\n"
+                    "echo 'ok';\n"
+                )
+                php_path = "/tmp/set_map_widget.php"
+                with open(php_path, "w") as _fh:
+                    _fh.write(php_script)
+                result = wp(f"eval-file {php_path}", wp_path)
+                import os; os.unlink(php_path)
+                if "ok" in result:
+                    log(f"Footer map widget updated: {city}, {state}")
+                else:
+                    warn(f"Footer map widget eval-file returned: {result}")
         except Exception as e:
             warn(f"Could not update footer map widget: {e}")
 
