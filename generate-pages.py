@@ -1126,11 +1126,6 @@ def update_nav_menus(config):
                 continue
             page_title = f"{niche_short} Services in {city}, {state}"
             page_id = get_existing_page_id(page_title, wp_path)
-            if not page_id and city_data.get("is_primary"):
-                try:
-                    page_id = wp("option get page_on_front", wp_path).strip()
-                except Exception:
-                    pass
             if page_id:
                 try:
                     wp(
