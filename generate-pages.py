@@ -1021,7 +1021,7 @@ def build_contact_page(config):
 # ============================================================
 
 def generate_static_pages(config):
-    """Create or update About, FAQ, and Contact pages."""
+    """Create or update About, FAQ, and Contact pages; add footer map widget."""
     wp_path = config["wp_path"]
     pages = [
         ("About",   build_about_page(config)),
@@ -1033,6 +1033,27 @@ def generate_static_pages(config):
         post_id = upsert_page(title, markup, wp_path, existing_id)
         action = "Updated" if existing_id else "Created"
         log(f"{action} {title} page (ID: {post_id})")
+
+    # Footer map widget (Column 4) — city-specific Google Maps embed
+    city  = config.get("primary_city", "")
+    state = config.get("primary_state", "")
+    if city and state:
+        map_query = f"{city},{state}".replace(" ", "+")
+        map_html  = (
+            f'<iframe src="https://maps.google.com/maps?q={map_query}&t=m&z=10&output=embed&iwloc=near" '
+            'width="100%" height="250" style="border:0;border-radius:6px;" '
+            'allowfullscreen="" loading="lazy"></iframe>'
+        )
+        try:
+            existing = wp("widget list footer-widget-4 --format=json", wp_path)
+            widgets  = json.loads(existing) if existing.strip().startswith("[") else []
+            if widgets:
+                wp(f"widget delete {widgets[0]['id']}", wp_path)
+            map_esc = shell_esc(map_html)
+            wp(f"widget add block footer-widget-4 1 --content='{map_esc}'", wp_path)
+            log(f"Footer map widget updated: {city}, {state}")
+        except Exception as e:
+            warn(f"Could not update footer map widget: {e}")
 
 
 # ============================================================
