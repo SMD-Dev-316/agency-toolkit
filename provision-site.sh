@@ -442,7 +442,7 @@ if [ -z "$FOOTER_SERVICES_ID" ]; then
 else
     warn "Menu already exists: Footer Services (ID: $FOOTER_SERVICES_ID)"
 fi
-wp widget add nav_menu footer-widget-4 1 --nav_menu=$FOOTER_SERVICES_ID --title="Services"
+wp widget add nav_menu footer-widget-5 1 --nav_menu=$FOOTER_SERVICES_ID --title="Services"
 log "Footer Services menu created (Column 2) — items added by generate-pages.py"
 
 # Footer Contact block (Column 3, below Help)
