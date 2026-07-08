@@ -1,0 +1,18 @@
+<!-- wp:group {"layout":{"type":"constrained"}} -->
+<div class="wp-block-group"><!-- wp:uagb/advanced-heading {"block_id":"ctc0h2x0","classMigrate":true,"headingDescToggle":false} -->
+<div class="wp-block-uagb-advanced-heading uagb-block-ctc0h2x0"><h2 class="uagb-heading-text">Contact Us</h2></div>
+<!-- /wp:uagb/advanced-heading -->
+
+<!-- wp:paragraph -->
+<p>Serving {{PRIMARY_CITY}}, {{PRIMARY_STATE}} and surrounding communities.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:uagb/icon-list {"block_id":"ctc0il0x","classMigrate":true,"childMigrate":true,"gap":16,"size":20,"iconColor":"var(--ast-global-color-0)","labelColor":"var(--ast-global-color-3)","blockTopMargin":8} -->
+<div class="wp-block-uagb-icon-list uagb-block-ctc0il0x"><div class="uagb-icon-list__wrap"><!-- wp:uagb/icon-list-child {"block_id":"ctc0ph0x","label":"{{PHONE}}","icon":"phone","icon_color":"var(--ast-global-color-0)","label_color":"var(--ast-global-color-3)","link":"tel:{{PHONE_DIGITS}}","disableLink":false,"imageSizeChild":20} -->
+<div class="wp-block-uagb-icon-list-child uagb-block-ctc0ph0x"><a target="_self" aria-label="{{PHONE}}" rel="noopener noreferrer" href="tel:{{PHONE_DIGITS}}"> </a><span class="uagb-icon-list__source-wrap"><svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M511.2 387l-23.25 100.8c-3.266 14.25-15.79 24.22-30.46 24.22C205.2 512 0 306.8 0 54.5c0-14.66 9.969-27.2 24.22-30.45l100.8-23.25C139.7-2.602 154.7 5.018 160.8 18.92l46.52 108.5c5.438 12.78 1.77 27.67-8.98 36.45L144.5 207.1c33.98 69.22 90.26 125.5 159.5 159.5l44.08-53.8c8.688-10.78 23.69-14.51 36.47-8.975l108.5 46.51C506.1 357.2 514.6 372.4 511.2 387z"></path></svg></span><span class="uagb-icon-list__label">{{PHONE}}</span></div>
+<!-- /wp:uagb/icon-list-child -->
+<!-- wp:uagb/icon-list-child {"block_id":"ctc0cl0x","label":"Mon-Fri 8:00 am - 6:00 pm","icon":"clock","disableLink":true,"imageSizeChild":20} -->
+<div class="wp-block-uagb-icon-list-child uagb-block-ctc0cl0x"><span class="uagb-icon-list__source-wrap"><svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm57.1 350.1L224.9 294c-3.1-2.3-4.9-5.9-4.9-9.7V116c0-6.6 5.4-12 12-12h48c6.6 0 12 5.4 12 12v137.7l63.5 46.2c5.4 3.9 6.5 11.4 2.6 16.8l-28.2 38.8c-3.9 5.3-11.4 6.5-16.8 2.6z"></path></svg></span><span class="uagb-icon-list__label">Mon-Fri 8:00 am - 6:00 pm</span></div>
+<!-- /wp:uagb/icon-list-child --></div></div>
+<!-- /wp:uagb/icon-list --></div>
+<!-- /wp:group -->

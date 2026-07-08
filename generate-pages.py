@@ -7,6 +7,7 @@
 #        python3 generate-pages.py --config configs/fence-tier1-cities.json --update
 #        python3 generate-pages.py --config configs/fence-tier1-cities.json --only-overviews
 #        python3 generate-pages.py --config configs/fence-tier1-cities.json --only-service-pages
+#        python3 generate-pages.py --config configs/fence-tier1-cities.json --static-pages
 # ============================================================
 
 import os
@@ -41,7 +42,7 @@ def section(msg): print(f"\n{BLUE}--- {msg} ---{NC}")
 # WP-CLI HELPER
 # ============================================================
 def wp(command, wp_path):
-    full_cmd = f"wp {command} --path={wp_path}"
+    full_cmd = f"wp {command} --path={wp_path} --allow-root"
     result = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
     if result.returncode != 0:
         raise Exception(f"WP-CLI error: {result.stderr.strip()}")
@@ -861,6 +862,318 @@ def generate_city_overview_page(city, state, config, city_data, update=False, dr
 
 
 # ============================================================
+# STATIC PAGE BUILDERS
+# ============================================================
+
+def _build_two_col_outer(left_col, right_col):
+    """Full-width two-column content area (matches individual service page layout)."""
+    outer_id = gen_id()
+    return (
+        f'<!-- wp:uagb/container {{"block_id":"{outer_id}","directionDesktop":"row",'
+        f'"directionTablet":"column","alignItemsDesktop":"stretch",'
+        f'"alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
+        f'"justifyContentDesktop":"flex-start",'
+        f'"backgroundType":"color",'
+        f'"backgroundColor":"var(\\u002d\\u002dast-global-color-5)",'
+        f'"topPaddingDesktop":112,"bottomPaddingDesktop":112,'
+        f'"leftPaddingDesktop":40,"rightPaddingDesktop":40,'
+        f'"topPaddingTablet":80,"bottomPaddingTablet":80,'
+        f'"leftPaddingTablet":32,"rightPaddingTablet":32,'
+        f'"topPaddingMobile":64,"bottomPaddingMobile":64,'
+        f'"leftPaddingMobile":24,"rightPaddingMobile":24,'
+        f'"paddingLink":false,"variationSelected":true,'
+        f'"rowGapDesktop":0,"rowGapTablet":0,"rowGapMobile":40,'
+        f'"columnGapDesktop":72,"columnGapTablet":40,"columnGapMobile":0,'
+        f'"isBlockRootParent":true,"equalHeight":true}} -->\n'
+        f'<div class="wp-block-uagb-container uagb-block-{outer_id} alignfull uagb-is-root-container">'
+        f'<div class="uagb-container-inner-blocks-wrap">\n'
+        f'{left_col}\n{right_col}\n'
+        f'</div></div>\n<!-- /wp:uagb/container -->'
+    )
+
+
+def _build_left_col(content, width=65):
+    col_id = gen_id()
+    return (
+        f'<!-- wp:uagb/container {{"block_id":"{col_id}","widthDesktop":{width},'
+        f'"widthTablet":100,"alignItemsTablet":"center","alignItemsMobile":"center",'
+        f'"justifyContentDesktop":"flex-start",'
+        f'"topPaddingDesktop":0,"bottomPaddingDesktop":0,'
+        f'"leftPaddingDesktop":0,"rightPaddingDesktop":0,'
+        f'"topPaddingTablet":0,"bottomPaddingTablet":0,'
+        f'"leftPaddingTablet":0,"rightPaddingTablet":0,'
+        f'"topPaddingMobile":0,"bottomPaddingMobile":0,'
+        f'"leftPaddingMobile":0,"rightPaddingMobile":0,'
+        f'"paddingLink":false,"variationSelected":true,'
+        f'"rowGapDesktop":24,"rowGapTablet":24,"rowGapMobile":24,'
+        f'"columnGapDesktop":0,"widthSetByUser":true}} -->\n'
+        f'<div class="wp-block-uagb-container uagb-block-{col_id}">\n'
+        f'{content}\n'
+        f'</div>\n<!-- /wp:uagb/container -->'
+    )
+
+
+def build_about_page(config):
+    """Banner + two-column: left=H2+text+contact_block_ref, right=sidebar."""
+    brand          = config.get("brand_name", "Our Company")
+    niche          = config.get("niche", "Services")
+    banner_cta_ref = config.get("banner_cta_ref", 0)
+    sidebar_ref    = config.get("sidebar_block_ref", 0)
+    contact_ref    = config.get("contact_block_ref", 0)
+
+    banner = build_banner(
+        f"About {brand}",
+        f"Locally owned and operated {niche} you can trust.",
+        banner_cta_ref
+    )
+
+    head_id = gen_id()
+    left_content = (
+        f'<!-- wp:uagb/advanced-heading {{"block_id":"{head_id}","classMigrate":true,'
+        f'"headingDescToggle":false}} -->\n'
+        f'<div class="wp-block-uagb-advanced-heading uagb-block-{head_id}">'
+        f'<h2 class="uagb-heading-text">About {brand}</h2></div>\n'
+        f'<!-- /wp:uagb/advanced-heading -->\n'
+        f'<!-- wp:paragraph -->\n'
+        f'<p>We are a locally owned and operated {niche} company serving homeowners and businesses in the area. '
+        f'Our team is committed to fast, reliable service at fair prices. '
+        f'Contact us today to schedule service or request a free quote.</p>\n'
+        f'<!-- /wp:paragraph -->\n'
+        f'<!-- wp:block {{"ref":{contact_ref}}} /-->'
+    )
+
+    left_col = _build_left_col(left_content, width=65)
+    sidebar  = build_sidebar(sidebar_ref)
+    return banner + "\n\n" + _build_two_col_outer(left_col, sidebar)
+
+
+def build_faq_page(config):
+    """Banner + two-column: left=H2+FAQ accordion, right=sidebar."""
+    niche          = config.get("niche", "Services")
+    banner_cta_ref = config.get("banner_cta_ref", 0)
+    sidebar_ref    = config.get("sidebar_block_ref", 0)
+    faqs           = config.get("faq_page_faqs", [
+        {"question": "What areas do you serve?",
+         "answer": "We serve the local area and surrounding communities. Contact us to confirm service to your location."},
+        {"question": "How do I request a free quote?",
+         "answer": "You can request a free quote by filling out our online form or calling us directly. We typically respond the same business day."},
+        {"question": "Are you licensed and insured?",
+         "answer": "Yes. We are fully licensed and insured, so you can feel confident hiring us for your home or business."},
+        {"question": "How quickly can you schedule service?",
+         "answer": "We offer flexible scheduling and typically respond to requests within one business day. Emergency service may be available."},
+    ])
+
+    banner = build_banner(
+        "Frequently Asked Questions",
+        f"Common questions about our {niche}.",
+        banner_cta_ref
+    )
+
+    faq_block = build_faq_block(faqs)
+    head_id   = gen_id()
+    sep_id    = gen_id()
+    left_content = (
+        f'<!-- wp:uagb/advanced-heading {{"block_id":"{head_id}","classMigrate":true,'
+        f'"headingDescToggle":false}} -->\n'
+        f'<div class="wp-block-uagb-advanced-heading uagb-block-{head_id}">'
+        f'<h2 class="uagb-heading-text">Your Questions Answered</h2></div>\n'
+        f'<!-- /wp:uagb/advanced-heading -->\n'
+        f'{faq_block}\n'
+        f'{build_uagb_separator(sep_id)}'
+    )
+
+    left_col = _build_left_col(left_content, width=65)
+    sidebar  = build_sidebar(sidebar_ref)
+    return banner + "\n\n" + _build_two_col_outer(left_col, sidebar)
+
+
+def build_contact_page(config):
+    """Banner + two-column: left=contact_block_ref, right=Fluent Form."""
+    banner_cta_ref = config.get("banner_cta_ref", 0)
+    contact_ref    = config.get("contact_block_ref", 0)
+    form_id        = str(config.get("contact_form_id", "1"))
+
+    banner = build_banner(
+        "Contact Us",
+        "Get in touch for a free quote or to schedule service.",
+        banner_cta_ref
+    )
+
+    left_content  = f'<!-- wp:block {{"ref":{contact_ref}}} /-->'
+
+    form_head_id  = gen_id()
+    right_content = (
+        f'<!-- wp:uagb/advanced-heading {{"block_id":"{form_head_id}","classMigrate":true,'
+        f'"headingDescToggle":false}} -->\n'
+        f'<div class="wp-block-uagb-advanced-heading uagb-block-{form_head_id}">'
+        f'<h2 class="uagb-heading-text">Request a Free Quote</h2></div>\n'
+        f'<!-- /wp:uagb/advanced-heading -->\n'
+        f'<!-- wp:fluentfom/guten-block {{"formId":"{form_id}"}} /-->'
+    )
+
+    left_col  = _build_left_col(left_content, width=45)
+    right_col = _build_left_col(right_content, width=50)
+    return banner + "\n\n" + _build_two_col_outer(left_col, right_col)
+
+
+# ============================================================
+# STATIC PAGE GENERATOR
+# ============================================================
+
+def generate_static_pages(config):
+    """Create or update About, FAQ, and Contact pages."""
+    wp_path = config["wp_path"]
+    pages = [
+        ("About",   build_about_page(config)),
+        ("FAQ",     build_faq_page(config)),
+        ("Contact", build_contact_page(config)),
+    ]
+    for title, markup in pages:
+        existing_id = get_existing_page_id(title, wp_path)
+        post_id = upsert_page(title, markup, wp_path, existing_id)
+        action = "Updated" if existing_id else "Created"
+        log(f"{action} {title} page (ID: {post_id})")
+
+
+# ============================================================
+# NAV MENU UPDATER
+# ============================================================
+
+def update_nav_menus(config):
+    """Populate Services and Service Areas dropdowns + Footer Services menu."""
+    wp_path  = config["wp_path"]
+    services = config["services"]
+    cities   = config["cities"]
+    niche    = config["niche"]
+    niche_short = niche.replace(" Services", "").replace(" Service", "")
+
+    primary_city_data = next((c for c in cities if c.get("is_primary")), cities[0])
+
+    try:
+        menus_raw = wp("menu list --fields=term_id,name --format=json", wp_path)
+        menus = json.loads(menus_raw)
+    except Exception as e:
+        warn(f"Could not list menus: {e}")
+        return
+
+    primary_menu_id    = None
+    footer_services_id = None
+    for m in menus:
+        if m["name"] == "Primary Menu":
+            primary_menu_id = str(m["term_id"])
+        if m["name"] == "Footer Services":
+            footer_services_id = str(m["term_id"])
+
+    if not primary_menu_id:
+        warn("Primary Menu not found — skipping nav update")
+        return
+
+    try:
+        items_raw = wp(
+            f"menu item list {primary_menu_id} "
+            "--fields=ID,title,menu_item_parent --format=json",
+            wp_path
+        )
+        items = json.loads(items_raw)
+    except Exception as e:
+        warn(f"Could not read primary menu items: {e}")
+        return
+
+    services_parent_id  = None
+    svc_areas_parent_id = None
+    existing_services   = set()
+    existing_areas      = set()
+
+    for item in items:
+        parent = str(item.get("menu_item_parent", "0"))
+        if item["title"] == "Services" and parent == "0":
+            services_parent_id = str(item["ID"])
+        elif item["title"] == "Service Areas" and parent == "0":
+            svc_areas_parent_id = str(item["ID"])
+
+    for item in items:
+        parent = str(item.get("menu_item_parent", "0"))
+        if services_parent_id and parent == services_parent_id:
+            existing_services.add(item["title"])
+        if svc_areas_parent_id and parent == svc_areas_parent_id:
+            existing_areas.add(item["title"])
+
+    # populate Services dropdown
+    if services_parent_id:
+        city  = primary_city_data["city"]
+        state = primary_city_data["state"]
+        for service in services:
+            if service in existing_services:
+                continue
+            page_id = get_existing_page_id(f"{service} in {city}, {state}", wp_path)
+            if page_id:
+                try:
+                    wp(
+                        f"menu item add-post {primary_menu_id} {page_id} "
+                        f"--title='{shell_esc(service)}' --parent-id={services_parent_id}",
+                        wp_path
+                    )
+                    log(f"Services menu: added {service}")
+                except Exception as e:
+                    warn(f"Could not add to Services menu: {service} — {e}")
+
+    # populate Service Areas dropdown
+    if svc_areas_parent_id:
+        for city_data in cities:
+            city  = city_data["city"]
+            state = city_data["state"]
+            if city in existing_areas:
+                continue
+            page_title = f"{niche_short} Services in {city}, {state}"
+            page_id = get_existing_page_id(page_title, wp_path)
+            if not page_id and city_data.get("is_primary"):
+                try:
+                    page_id = wp("option get page_on_front", wp_path).strip()
+                except Exception:
+                    pass
+            if page_id:
+                try:
+                    wp(
+                        f"menu item add-post {primary_menu_id} {page_id} "
+                        f"--title='{shell_esc(city)}' --parent-id={svc_areas_parent_id}",
+                        wp_path
+                    )
+                    log(f"Service Areas menu: added {city}")
+                except Exception as e:
+                    warn(f"Could not add to Service Areas menu: {city} — {e}")
+
+    # populate Footer Services menu
+    if footer_services_id:
+        try:
+            fi_raw = wp(
+                f"menu item list {footer_services_id} --fields=ID,title --format=json",
+                wp_path
+            )
+            existing_footer = {i["title"] for i in json.loads(fi_raw)}
+        except Exception:
+            existing_footer = set()
+
+        city  = primary_city_data["city"]
+        state = primary_city_data["state"]
+        for service in services:
+            if service in existing_footer:
+                continue
+            page_id = get_existing_page_id(f"{service} in {city}, {state}", wp_path)
+            if page_id:
+                try:
+                    wp(
+                        f"menu item add-post {footer_services_id} {page_id} "
+                        f"--title='{shell_esc(service)}'",
+                        wp_path
+                    )
+                    log(f"Footer Services: added {service}")
+                except Exception as e:
+                    warn(f"Could not add to Footer Services: {service} — {e}")
+
+    log("Nav menus updated")
+
+
+# ============================================================
 # MAIN
 # ============================================================
 
@@ -874,6 +1187,7 @@ def main():
     parser.add_argument("--city",              help="Limit to a single city name (exact match)")
     parser.add_argument("--service",           help="Limit to a single service name (exact match)")
     parser.add_argument("--rebuild",           action="store_true", help="Rebuild page HTML from cache (no API calls)")
+    parser.add_argument("--static-pages",      action="store_true", help="Generate/update About, FAQ, and Contact pages + nav menus")
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -968,10 +1282,21 @@ def main():
         for e in errors:
             print(f"  {e}")
 
+    if args.static_pages:
+        section("Static Pages (About / FAQ / Contact)")
+        generate_static_pages(config)
+
+    if args.update or args.static_pages:
+        section("Nav Menus")
+        update_nav_menus(config)
+
     log_path = "/tmp/" + os.path.basename(args.config).replace(".json", "-results.json")
-    with open(log_path, "w") as f:
-        json.dump({"results": results, "errors": errors}, f, indent=2)
-    log(f"Results log: {log_path}")
+    try:
+        with open(log_path, "w") as f:
+            json.dump({"results": results, "errors": errors}, f, indent=2)
+        log(f"Results log: {log_path}")
+    except PermissionError:
+        warn(f"Could not write results log (permission denied): {log_path}")
 
 
 if __name__ == "__main__":

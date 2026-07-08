@@ -193,6 +193,9 @@ log "Free Quote page ready (ID: $QUOTE_ID)"
 CONTACT_ID=$(get_or_create_page "Contact")
 log "Contact page ready (ID: $CONTACT_ID)"
 
+FAQ_ID=$(get_or_create_page "FAQ")
+log "FAQ page ready (ID: $FAQ_ID)"
+
 PRIVACY_ID=$(get_or_create_page "Privacy Policy")
 log "Privacy Policy page ready (ID: $PRIVACY_ID)"
 
@@ -238,6 +241,27 @@ if [ -f "$BANNER_TEMPLATE" ]; then
 else
     warn "banner-block.txt not found at $BANNER_TEMPLATE"
     BANNER_ID="NOT_CREATED"
+fi
+
+CONTACT_TEMPLATE="$TOOLKIT_DIR/templates/contact-block.txt"
+if [ -f "$CONTACT_TEMPLATE" ]; then
+    CONTACT_BLOCK_CONTENT=$(sed \
+        -e "s/{{PHONE}}/(000) 000-0000/g" \
+        -e "s/{{PHONE_DIGITS}}/10000000000/g" \
+        -e "s/{{PRIMARY_CITY}}/Your City/g" \
+        -e "s/{{PRIMARY_STATE}}/Your State/g" \
+        "$CONTACT_TEMPLATE")
+    CONTACT_BLOCK_ID=$(wp post create \
+        --post_type=wp_block \
+        --post_title="Contact Block 01" \
+        --post_status=publish \
+        --post_content="$CONTACT_BLOCK_CONTENT" \
+        --porcelain)
+    log "Contact Block 01 created (ID: $CONTACT_BLOCK_ID)"
+    warn "Add contact_block_ref: $CONTACT_BLOCK_ID to this site's config JSON"
+else
+    warn "contact-block.txt not found at $CONTACT_TEMPLATE"
+    CONTACT_BLOCK_ID="NOT_CREATED"
 fi
 
 # ============================================================
@@ -374,10 +398,12 @@ if [ -z "$PRIMARY_MENU_ID" ]; then
 else
     warn "Menu already exists: Primary Menu (ID: $PRIMARY_MENU_ID)"
 fi
-wp menu item add-post $PRIMARY_MENU_ID $HOME_ID  --title="Home"
-wp menu item add-post $PRIMARY_MENU_ID $ABOUT_ID --title="About"
-wp menu item add-post $PRIMARY_MENU_ID $QUOTE_ID --title="Free Quote"
-wp menu item add-post $PRIMARY_MENU_ID $CONTACT_ID --title="Contact"
+wp menu item add-post   $PRIMARY_MENU_ID $HOME_ID    --title="Home"
+wp menu item add-custom $PRIMARY_MENU_ID "Service Areas" "#"
+wp menu item add-custom $PRIMARY_MENU_ID "Services" "#"
+wp menu item add-post   $PRIMARY_MENU_ID $ABOUT_ID   --title="About"
+wp menu item add-post   $PRIMARY_MENU_ID $FAQ_ID     --title="FAQ"
+wp menu item add-post   $PRIMARY_MENU_ID $CONTACT_ID --title="Contact"
 wp menu location assign $PRIMARY_MENU_ID primary
 log "Primary menu created and assigned"
 
@@ -390,6 +416,7 @@ else
 fi
 wp menu item add-post $FOOTER_NAV_ID $HOME_ID    --title="Home"
 wp menu item add-post $FOOTER_NAV_ID $ABOUT_ID   --title="About"
+wp menu item add-post $FOOTER_NAV_ID $FAQ_ID     --title="FAQ"
 wp menu item add-post $FOOTER_NAV_ID $CONTACT_ID --title="Contact"
 wp menu item add-post $FOOTER_NAV_ID $QUOTE_ID   --title="Free Quote"
 wp widget add nav_menu footer-widget-3 1 --nav_menu=$FOOTER_NAV_ID --title="Navigation"
@@ -402,10 +429,21 @@ if [ -z "$FOOTER_HELP_ID" ]; then
 else
     warn "Menu already exists: Footer Help (ID: $FOOTER_HELP_ID)"
 fi
+wp menu item add-post $FOOTER_HELP_ID $FAQ_ID     --title="FAQ"
 wp menu item add-post $FOOTER_HELP_ID $CONTACT_ID --title="Contact"
 wp menu item add-post $FOOTER_HELP_ID $QUOTE_ID   --title="Free Quote"
 wp widget add nav_menu footer-widget-6 1 --nav_menu=$FOOTER_HELP_ID --title="Help"
 log "Footer Help menu created (Column 3)"
+
+# Footer Services menu (Column 2)
+FOOTER_SERVICES_ID=$(wp menu list --format=csv | grep -i ",\"\?Footer Services\"\?," | cut -d, -f1 | head -1)
+if [ -z "$FOOTER_SERVICES_ID" ]; then
+    FOOTER_SERVICES_ID=$(wp menu create "Footer Services" --porcelain)
+else
+    warn "Menu already exists: Footer Services (ID: $FOOTER_SERVICES_ID)"
+fi
+wp widget add nav_menu footer-widget-4 1 --nav_menu=$FOOTER_SERVICES_ID --title="Services"
+log "Footer Services menu created (Column 2) — items added by generate-pages.py"
 
 # Footer Contact block (Column 3, below Help)
 SITE_DOMAIN=$(wp option get siteurl | sed 's|https\?://||' | sed 's|www\.||')
@@ -434,20 +472,24 @@ echo "============================================================"
 echo " Site:              $SITE_URL"
 echo " Home:              ID $HOME_ID"
 echo " About:             ID $ABOUT_ID"
+echo " FAQ:               ID $FAQ_ID"
 echo " Free Quote:        ID $QUOTE_ID"
 echo " Contact:           ID $CONTACT_ID"
 echo " Privacy:           ID $PRIVACY_ID"
 echo " Terms:             ID $TERMS_ID"
 echo " Sidebar Block:     ID $SIDEBAR_ID"
 echo " Banner Block:      ID $BANNER_ID"
+echo " Contact Block:     ID $CONTACT_BLOCK_ID"
 echo ""
 echo " MANUAL STEPS REMAINING:"
 echo " 1. Upload Pro ZIPs to $PLUGINS_DIR (if not done):"
 echo "    astra-child.zip | astra-pro.zip | spectra-pro.zip | ultimate-addons-for-elementor-pro.zip | rank-math-pro.zip | fluent-forms-pro.zip"
 echo " 2. Update sidebar_block_ref in config JSON to: $SIDEBAR_ID"
 echo " 3. Update banner_cta_ref in config JSON to: $BANNER_ID"
-echo " 4. Update phone number in the sidebar reusable block when renting"
-echo " 5. Configure Fluent SMTP with this site's email settings"
-echo " 6. Add GA4 Measurement ID in GA Google Analytics settings"
-echo " 7. Run page generation script with niche config"
+echo " 4. Update contact_block_ref in config JSON to: $CONTACT_BLOCK_ID"
+echo " 5. Update phone/city/state in Contact Block 01 reusable block when renting"
+echo " 6. Configure Fluent SMTP with this site's email settings"
+echo " 7. Add GA4 Measurement ID in GA Google Analytics settings"
+echo " 8. Run: python3 generate-pages.py --config <cfg> --static-pages"
+echo " 9. Run: python3 generate-pages.py --config <cfg> --update"
 echo "============================================================"
