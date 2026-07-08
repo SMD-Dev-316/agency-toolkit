@@ -912,7 +912,7 @@ def main():
         for e in errors:
             print(f"  {e}")
 
-    log_path = args.config.replace(".json", "-results.json")
+    log_path = "/tmp/" + os.path.basename(args.config).replace(".json", "-results.json")
     with open(log_path, "w") as f:
         json.dump({"results": results, "errors": errors}, f, indent=2)
     log(f"Results log: {log_path}")
