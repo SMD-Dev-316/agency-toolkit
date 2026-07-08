@@ -71,6 +71,27 @@ def shell_esc(text):
 # BLOCK BUILDERS ‚Äî Spectra / Gutenberg markup
 # ============================================================
 
+
+# ── Content cache ─────────────────────────────────────────────────────────────
+
+def _cache_path(config_path):
+    name = os.path.basename(config_path).replace(".json", "-content-cache.json")
+    return os.path.join("/var/www/agency-toolkit/cache", name)
+
+def _load_cache(config_path):
+    path = _cache_path(config_path)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def _save_cache(cache, config_path):
+    path = _cache_path(config_path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=2)
+
+
 def build_faq_block(faqs):
     """Build Rank Math FAQ block with FAQPage schema support."""
     questions = []
@@ -757,7 +778,7 @@ def set_rank_math_meta(post_id, meta, wp_path):
 # PAGE GENERATORS
 # ============================================================
 
-def generate_individual_service_page(service, city, state, config, city_data, update=False, dry_run=False):
+def generate_individual_service_page(service, city, state, config, city_data, update=False, dry_run=False, rebuild=False, cache=None, config_path=None):
     wp_path = config["wp_path"]
     niche   = config["niche"]
     brand   = config["brand_name"]
@@ -779,9 +800,16 @@ def generate_individual_service_page(service, city, state, config, city_data, up
 
     log(f"{'Updating' if existing_id else 'Creating'}: {title}")
 
-    content_data = generate_individual_content(service, city, state, county, nearby, niche, brand)
+    if rebuild and cache is not None and title in cache:
+        content_data = cache[title]["content"]
+        meta         = cache[title]["meta"]
+    else:
+        content_data = generate_individual_content(service, city, state, county, nearby, niche, brand)
+        meta         = generate_seo_meta(focus_kw, city, state, brand)
+        if cache is not None and config_path:
+            cache[title] = {"content": content_data, "meta": meta}
+            _save_cache(cache, config_path)
     page_markup  = build_individual_service_page(content_data, config, service, city, state)
-    meta         = generate_seo_meta(focus_kw, city, state, brand)
 
     post_id = upsert_page(title, page_markup, wp_path, existing_id)
     set_rank_math_meta(post_id, meta, wp_path)
@@ -790,7 +818,7 @@ def generate_individual_service_page(service, city, state, config, city_data, up
     return {"title": title, "post_id": post_id, "action": "updated" if existing_id else "created", **meta}
 
 
-def generate_city_overview_page(city, state, config, city_data, update=False, dry_run=False):
+def generate_city_overview_page(city, state, config, city_data, update=False, dry_run=False, rebuild=False, cache=None, config_path=None):
     wp_path  = config["wp_path"]
     niche    = config["niche"]
     brand    = config["brand_name"]
@@ -812,11 +840,18 @@ def generate_city_overview_page(city, state, config, city_data, update=False, dr
 
     log(f"{'Updating' if existing_id else 'Creating'} (overview): {title}")
 
-    content_data = generate_city_overview_content(city, state, services, niche, brand)
-    content_data["_city"]  = city
-    content_data["_state"] = state
+    if rebuild and cache is not None and title in cache:
+        content_data = cache[title]["content"]
+        meta         = cache[title]["meta"]
+    else:
+        content_data = generate_city_overview_content(city, state, services, niche, brand)
+        content_data["_city"]  = city
+        content_data["_state"] = state
+        meta         = generate_seo_meta(focus_kw, city, state, brand)
+        if cache is not None and config_path:
+            cache[title] = {"content": content_data, "meta": meta}
+            _save_cache(cache, config_path)
     page_markup  = build_city_overview_page(content_data, services, config)
-    meta         = generate_seo_meta(focus_kw, city, state, brand)
 
     post_id = upsert_page(title, page_markup, wp_path, existing_id)
     set_rank_math_meta(post_id, meta, wp_path)
@@ -838,10 +873,13 @@ def main():
     parser.add_argument("--only-service-pages",action="store_true", help="Generate individual service pages only")
     parser.add_argument("--city",              help="Limit to a single city name (exact match)")
     parser.add_argument("--service",           help="Limit to a single service name (exact match)")
+    parser.add_argument("--rebuild",           action="store_true", help="Rebuild page HTML from cache (no API calls)")
     args = parser.parse_args()
 
     with open(args.config) as f:
         config = json.load(f)
+
+    cache = _load_cache(args.config) if not args.dry_run else None
 
     services = config["services"]
     cities   = config["cities"]
@@ -873,6 +911,10 @@ def main():
         warn("DRY RUN ‚Äî no WP writes, no API calls")
     if args.update:
         warn("UPDATE MODE ‚Äî existing pages will be regenerated")
+    if args.rebuild:
+        n = len(cache) if cache else 0
+        msg = f"REBUILD MODE — {n} pages in cache, no API calls" if n else "REBUILD MODE — cache empty, will call API"
+        warn(msg)
 
     results = []
     errors  = []
@@ -887,7 +929,8 @@ def main():
             try:
                 r = generate_city_overview_page(
                     city_data["city"], city_data["state"],
-                    config, city_data, update=args.update, dry_run=args.dry_run
+                    config, city_data, update=args.update or args.rebuild, dry_run=args.dry_run,
+                    rebuild=args.rebuild, cache=cache, config_path=args.config
                 )
                 results.append(r)
             except Exception as e:
@@ -902,7 +945,8 @@ def main():
                 try:
                     r = generate_individual_service_page(
                         service, city_data["city"], city_data["state"],
-                        config, city_data, update=args.update, dry_run=args.dry_run
+                        config, city_data, update=args.update or args.rebuild, dry_run=args.dry_run,
+                        rebuild=args.rebuild, cache=cache, config_path=args.config
                     )
                     results.append(r)
                 except Exception as e:

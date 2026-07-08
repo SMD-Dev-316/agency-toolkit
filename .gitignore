@@ -1,3 +1,7 @@
 .env
 .env.save
 .env.save.1
+venv/
+cache/
+configs/*-results.json
+patch_*.py
