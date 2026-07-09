@@ -1024,13 +1024,16 @@ def build_contact_page(config):
 # LANDING PAGE BUILDERS (Service Areas + Services)
 # ============================================================
 
-def _build_landing_card(icon, heading, desc, link):
+def _build_landing_card(icon, heading, desc, link, icon_color=None):
     """Single icon card: colored icon bg + info-box h3 + Learn More button."""
     card_id      = gen_id()
     icon_cont_id = gen_id()
     infobox_id   = gen_id()
     buttons_id   = gen_id()
     btn_child_id = gen_id()
+    _ic = icon_color if icon_color else 'var:preset|color|ast-global-color-0'
+    _cs = f',"color":{{"text":"{icon_color}"}}' if icon_color else ''
+    _tc = '' if icon_color else ',"textColor":"ast-global-color-0"'
     return (
         f'<!-- wp:uagb/container {{"block_id":"{card_id}","widthDesktop":33,"widthTablet":31,'
         f'"alignItemsDesktop":"flex-start","justifyContentDesktop":"flex-start",'
@@ -1058,10 +1061,10 @@ def _build_landing_card(icon, heading, desc, link):
         f'<div class="wp-block-uagb-container uagb-block-{icon_cont_id}">'
         f'<!-- wp:icon {{"icon":"{icon}","align":"center",'
         f'"style":{{"dimensions":{{"width":"124px"}},'
-        f'"elements":{{"link":{{"color":{{"text":"var:preset|color|ast-global-color-0"}}}}}},'
+        f'"elements":{{"link":{{"color":{{"text":"{_ic}"}}}}}},'
         f'"border":{{"radius":{{"topLeft":"12px","topRight":"12px",'
-        f'"bottomLeft":"12px","bottomRight":"12px"}}}}}}'
-        f',"textColor":"ast-global-color-0"}} /-->\n'
+        f'"bottomLeft":"12px","bottomRight":"12px"}}}}{_cs}}}'
+        f'{_tc}}} /-->\n'
         f'</div>\n<!-- /wp:uagb/container -->\n'
         f'<!-- wp:uagb/info-box {{"classMigrate":true,"tempHeadingDesc":"Abcd",'
         f'"headingAlign":"left",'
@@ -1235,7 +1238,7 @@ def build_service_areas_page(config):
         state_slug = state.lower()
         url        = f"/{niche_slug}-services-in-{city_slug}-{state_slug}/"
         desc       = f"{niche_short} services in {city}, {state} and surrounding communities."
-        cards.append(_build_landing_card("core/map-marker", city, desc, url))
+        cards.append(_build_landing_card("core/map-marker", city, desc, url, icon_color="#bdc9d1"))
 
     grid    = _build_card_grid("\n".join(cards))
     sidebar = build_sidebar(sidebar_ref)
