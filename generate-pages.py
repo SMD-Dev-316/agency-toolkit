@@ -1252,6 +1252,8 @@ def build_services_page(config):
     banner_cta_ref = config.get("banner_cta_ref", 0)
     sidebar_ref    = config.get("sidebar_block_ref", 0)
     svc_descs      = config.get("service_card_descs", {})
+    img_base       = config.get("rar_image_base", "")
+    service_images = config.get("service_images", {})
     city_slug      = f"{primary_city.lower().replace(' ', '-')}-{primary_state.lower()}"
 
     banner = build_banner(
@@ -1264,12 +1266,14 @@ def build_services_page(config):
     for svc in services:
         svc_slug = svc.lower().replace(" ", "-").replace(",", "")
         url      = f"/{svc_slug}-in-{city_slug}/"
-        icon     = _SERVICE_ICONS.get(svc_slug, _SERVICE_ICON_DEFAULT)
-        desc     = svc_descs.get(svc) or (
+        rect_file = service_images.get(svc_slug, {}).get("rect", "")
+        img_url   = img_base + rect_file if rect_file else ""
+        alt_text  = f"{svc} {primary_city} {primary_state}"
+        desc      = svc_descs.get(svc) or (
             f"Professional {svc.lower()} serving {primary_city}, {primary_state}"
             f" and the surrounding area."
         )
-        cards.append(_build_landing_card(icon, svc, desc, url))
+        cards.append(build_service_card(svc, desc, url, img_url, alt_text))
 
     grid    = _build_card_grid("\n".join(cards))
     sidebar = build_sidebar(sidebar_ref)
