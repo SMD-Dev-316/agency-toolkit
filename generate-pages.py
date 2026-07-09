@@ -1020,13 +1020,272 @@ def build_contact_page(config):
 # STATIC PAGE GENERATOR
 # ============================================================
 
+# ============================================================
+# LANDING PAGE BUILDERS (Service Areas + Services)
+# ============================================================
+
+def _build_landing_card(icon, heading, desc, link):
+    """Single icon card: colored icon bg + info-box h3 + Learn More button."""
+    card_id      = gen_id()
+    icon_cont_id = gen_id()
+    infobox_id   = gen_id()
+    buttons_id   = gen_id()
+    btn_child_id = gen_id()
+    return (
+        f'<!-- wp:uagb/container {{"block_id":"{card_id}","widthDesktop":33,"widthTablet":31,'
+        f'"alignItemsDesktop":"flex-start","justifyContentDesktop":"flex-start",'
+        f'"backgroundType":"color","backgroundColor":"var(\\u002d\\u002dast-global-color-5)",'
+        f'"boxShadowColor":"rgba(0,0,0,0.1)","boxShadowVOffset":4,"boxShadowBlur":8,'
+        f'"boxShadowSpread":6,'
+        f'"topPaddingDesktop":20,"bottomPaddingDesktop":20,'
+        f'"leftPaddingDesktop":20,"rightPaddingDesktop":20,'
+        f'"topPaddingTablet":16,"bottomPaddingTablet":16,'
+        f'"leftPaddingTablet":16,"rightPaddingTablet":16,'
+        f'"topPaddingMobile":16,"bottomPaddingMobile":16,'
+        f'"leftPaddingMobile":16,"rightPaddingMobile":16,'
+        f'"variationSelected":true,"rowGapDesktop":24,"rowGapTablet":24,"rowGapMobile":20,'
+        f'"columnGapDesktop":0,"widthSetByUser":true,'
+        f'"containerBorderTopLeftRadius":6,"containerBorderTopRightRadius":6,'
+        f'"containerBorderBottomLeftRadius":6,"containerBorderBottomRightRadius":6,'
+        f'"layout":"flex","isGridCssInParent":true}} -->\n'
+        f'<div class="wp-block-uagb-container uagb-layout-flex uagb-block-{card_id}">'
+        f'<!-- wp:uagb/container {{"block_id":"{icon_cont_id}",'
+        f'"backgroundType":"color","backgroundColor":"var(\\u002d\\u002dast-global-color-4)",'
+        f'"containerBorderTopWidth":1,"containerBorderLeftWidth":1,'
+        f'"containerBorderRightWidth":1,"containerBorderBottomWidth":1,'
+        f'"containerBorderStyle":"solid",'
+        f'"containerBorderColor":"var(\\u002d\\u002dast-global-color-5)"}} -->\n'
+        f'<div class="wp-block-uagb-container uagb-block-{icon_cont_id}">'
+        f'<!-- wp:icon {{"icon":"{icon}","align":"center",'
+        f'"style":{{"dimensions":{{"width":"124px"}},'
+        f'"elements":{{"link":{{"color":{{"text":"var:preset|color|ast-global-color-0"}}}}}},'
+        f'"border":{{"radius":{{"topLeft":"12px","topRight":"12px",'
+        f'"bottomLeft":"12px","bottomRight":"12px"}}}}}}'
+        f',"textColor":"ast-global-color-0"}} /-->\n'
+        f'</div>\n<!-- /wp:uagb/container -->\n'
+        f'<!-- wp:uagb/info-box {{"classMigrate":true,"tempHeadingDesc":"Abcd",'
+        f'"headingAlign":"left",'
+        f'"headingColor":"var(\\u002d\\u002dast-global-color-2)",'
+        f'"subHeadingColor":"var(\\u002d\\u002dast-global-color-3)",'
+        f'"headSpace":16,"subHeadSpace":4,"block_id":"{infobox_id}",'
+        f'"imageWidth":120,"showIcon":false,'
+        f'"headTopMargin":0,"headRightMargin":0,"headLeftMargin":0,'
+        f'"headMarginTopTablet":0,"headMarginRightTablet":0,'
+        f'"headTabletSpace":16,"headMarginLeftTablet":0,'
+        f'"headMarginTopMobile":0,"headMarginRightMobile":0,'
+        f'"headMobileSpace":12,"headMarginLeftMobile":0,'
+        f'"blockTopPaddingTablet":0,"blockRightPaddingTablet":0,'
+        f'"blockLeftPaddingTablet":0,"blockBottomPaddingTablet":0,'
+        f'"subHeadTopMargin":0,"subHeadRightMargin":0,"subHeadLeftMargin":0,'
+        f'"subHeadMarginTopTablet":0,"subHeadMarginRightTablet":0,'
+        f'"subHeadTabletSpace":0,"subHeadMarginLeftTablet":0,'
+        f'"subHeadMarginTopMobile":0,"subHeadMarginRightMobile":0,'
+        f'"subHeadMobileSpace":0,"subHeadMarginLeftMobile":0,'
+        f'"btnBorderTopWidth":1,"btnBorderLeftWidth":1,'
+        f'"btnBorderRightWidth":1,"btnBorderBottomWidth":1,'
+        f'"btnBorderTopLeftRadius":0,"btnBorderTopRightRadius":0,'
+        f'"btnBorderBottomLeftRadius":0,"btnBorderBottomRightRadius":0,'
+        f'"btnBorderStyle":"solid","btnBorderColor":"#333"}} -->\n'
+        f'<div class="uagb-block-{infobox_id} uagb-infobox__content-wrap'
+        f'  uagb-infobox-icon-above-title uagb-infobox-image-valign-top ">'
+        f'<div class="uagb-ifb-content"><div class="uagb-ifb-title-wrap">'
+        f'<h3 class="uagb-ifb-title">{heading}</h3></div>'
+        f'<p class="uagb-ifb-desc">{desc}</p></div></div>\n'
+        f'<!-- /wp:uagb/info-box -->\n'
+        f'<!-- wp:uagb/buttons {{"block_id":"{buttons_id}","classMigrate":true,'
+        f'"childMigrate":true,"align":"left","alignTablet":"left","alignMobile":"left","gap":0}} -->\n'
+        f'<div class="wp-block-uagb-buttons uagb-buttons__outer-wrap'
+        f' uagb-btn__default-btn uagb-btn-tablet__default-btn uagb-btn-mobile__default-btn'
+        f' uagb-block-{buttons_id}"><div class="uagb-buttons__wrap uagb-buttons-layout-wrap ">'
+        f'<!-- wp:uagb/buttons-child {{"block_id":"{btn_child_id}","label":"Learn More",'
+        f'"link":"{link}",'
+        f'"topPadding":7,"rightPadding":10,"bottomPadding":7,"leftPadding":13,'
+        f'"paddingLink":false,"color":"#ffffff",'
+        f'"hColor":"var(\\u002d\\u002dast-global-color-1)",'
+        f'"hBackground":"var(\\u002d\\u002dast-global-color-7)",'
+        f'"icon":"chevron-right","topMargin":0,"rightMargin":0,"bottomMargin":0,"leftMargin":0,'
+        f'"iconColor":"var(\\u002d\\u002dast-global-color-5)",'
+        f'"iconHColor":"var(\\u002d\\u002dast-global-color-1)",'
+        f'"btnBorderTopWidth":1,"btnBorderLeftWidth":1,'
+        f'"btnBorderRightWidth":1,"btnBorderBottomWidth":1,'
+        f'"btnBorderTopLeftRadius":30,"btnBorderTopRightRadius":30,'
+        f'"btnBorderBottomLeftRadius":30,"btnBorderBottomRightRadius":30,'
+        f'"btnBorderStyle":"solid","btnBorderColor":"#333",'
+        f'"btnBorderHColor":"#333","showIcon":true}} -->\n'
+        f'<div class="wp-block-uagb-buttons-child uagb-buttons__outer-wrap'
+        f' uagb-block-{btn_child_id} wp-block-button">'
+        f'<div class="uagb-button__wrapper">'
+        f'<a class="uagb-buttons-repeater wp-block-button__link"'
+        f' aria-label="" href="{link}" rel="follow noopener" target="_self" role="button">'
+        f'<div class="uagb-button__link">Learn More</div>'
+        f'<span class="uagb-button__icon uagb-button__icon-position-after">'
+        f'<svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 320 512"'
+        f' aria-hidden="true" focussable="false">'
+        f'<path d="M96 480c-8.188 0-16.38-3.125-22.62-9.375c-12.5-12.5-12.5-32.75 0-45.25'
+        f'L242.8 256L73.38 86.63c-12.5-12.5-12.5-32.75 0-45.25s32.75-12.5 45.25 0'
+        f'l192 192c12.5 12.5 12.5 32.75 0 45.25l-192 192'
+        f'C112.4 476.9 104.2 480 96 480z"></path>'
+        f'</svg></span></a></div></div>\n'
+        f'<!-- /wp:uagb/buttons-child -->'
+        f'</div></div>\n<!-- /wp:uagb/buttons -->'
+        f'</div>\n<!-- /wp:uagb/container -->'
+    )
+
+
+def _build_card_grid(cards_markup):
+    """2-column card grid container (auto width on desktop, 100% on tablet)."""
+    col_id = gen_id()
+    return (
+        f'<!-- wp:uagb/container {{"block_id":"{col_id}","widthTablet":100,'
+        f'"directionDesktop":"row","alignItemsDesktop":"flex-start",'
+        f'"alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
+        f'"justifyContentDesktop":"flex-start","variationSelected":true,'
+        f'"rowGapDesktop":40,"rowGapMobile":30,'
+        f'"columnGapDesktop":24,"columnGapTablet":20,'
+        f'"widthSetByUser":true,"childrenWidthDesktop":"equal",'
+        f'"layout":"grid",'
+        f'"gridColumnDesktop":['
+        f'{{"default":"custom","min":{{"unit":"px","value":10}},'
+        f'"max":{{"unit":"fr","value":1}},"custom":{{"unit":"fr","value":1}}}},'
+        f'{{"default":"custom","min":{{"unit":"px","value":10}},'
+        f'"max":{{"unit":"fr","value":1}},"custom":{{"unit":"fr","value":1}}}}'
+        f']}} -->\n'
+        f'<div class="wp-block-uagb-container uagb-layout-grid uagb-block-{col_id}">\n'
+        f'{cards_markup}\n'
+        f'</div>\n<!-- /wp:uagb/container -->'
+    )
+
+
+def _build_landing_outer(left_col, right_col):
+    """Full-width two-column outer for landing pages (rowGapTablet:80, linkHoverColor)."""
+    outer_id = gen_id()
+    return (
+        f'<!-- wp:uagb/container {{"block_id":"{outer_id}","directionDesktop":"row",'
+        f'"directionTablet":"column","alignItemsDesktop":"stretch",'
+        f'"alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
+        f'"justifyContentDesktop":"flex-start",'
+        f'"backgroundType":"color",'
+        f'"backgroundColor":"var(\\u002d\\u002dast-global-color-5)",'
+        f'"topPaddingDesktop":112,"bottomPaddingDesktop":112,'
+        f'"leftPaddingDesktop":40,"rightPaddingDesktop":40,'
+        f'"topPaddingTablet":80,"bottomPaddingTablet":80,'
+        f'"leftPaddingTablet":32,"rightPaddingTablet":32,'
+        f'"topPaddingMobile":64,"bottomPaddingMobile":64,'
+        f'"leftPaddingMobile":24,"rightPaddingMobile":24,'
+        f'"paddingLink":false,"variationSelected":true,'
+        f'"rowGapDesktop":0,"rowGapTablet":80,"rowGapMobile":40,'
+        f'"columnGapDesktop":72,"columnGapTablet":40,"columnGapMobile":0,'
+        f'"isBlockRootParent":true,'
+        f'"linkHoverColor":"var(\\u002d\\u002dast-global-color-7)",'
+        f'"equalHeight":true}} -->\n'
+        f'<div class="wp-block-uagb-container uagb-block-{outer_id}'
+        f' alignfull uagb-is-root-container">'
+        f'<div class="uagb-container-inner-blocks-wrap">\n'
+        f'{left_col}\n{right_col}\n'
+        f'</div></div>\n<!-- /wp:uagb/container -->'
+    )
+
+
+# Icon map keyed on service slug (service.lower().replace(" ", "-").replace(",", ""))
+_SERVICE_ICONS = {
+    "drain-cleaning":          "core/tools",
+    "clogged-drain-repair":    "core/settings",
+    "hydro-jetting":           "core/cloud",
+    "sewer-drain-cleaning":    "core/search",
+    "emergency-drain-service": "core/warning",
+    "main-drain-cleaning":     "core/home",
+    "kitchen-drain-cleaning":  "core/filter",
+    # extras for other niches
+    "drain-repair":            "core/settings",
+    "sewer-line-services":     "core/search",
+    "grease-trap-cleaning":    "core/trash",
+    "floor-drain-services":    "core/grid-view",
+    "sump-pump-services":      "core/cloud",
+    "pipe-repair":             "core/settings",
+    "trenchless-repair":       "core/map-marker",
+    "camera-inspection":       "core/search",
+}
+_SERVICE_ICON_DEFAULT = "core/star-filled"
+
+
+def build_service_areas_page(config):
+    """Card grid of all cities — one card per city linking to its overview page."""
+    niche          = config.get("niche", "Services")
+    niche_short    = niche.replace(" Services", "").replace(" Service", "")
+    niche_slug     = niche_short.lower().replace(" ", "-")
+    primary_city   = config.get("primary_city", "")
+    primary_state  = config.get("primary_state", "")
+    cities         = config.get("cities", [])
+    banner_cta_ref = config.get("banner_cta_ref", 0)
+    sidebar_ref    = config.get("sidebar_block_ref", 0)
+
+    banner = build_banner(
+        "Service Areas",
+        f"Serving {primary_city}, {primary_state} and the surrounding region.",
+        banner_cta_ref
+    )
+
+    # Primary city first, then alphabetical
+    sorted_cities = sorted(cities, key=lambda c: (0 if c.get("is_primary") else 1, c["city"]))
+    cards = []
+    for city_data in sorted_cities:
+        city       = city_data["city"]
+        state      = city_data["state"]
+        city_slug  = city.lower().replace(" ", "-").replace(".", "")
+        state_slug = state.lower()
+        url        = f"/{niche_slug}-services-in-{city_slug}-{state_slug}/"
+        desc       = f"{niche_short} services in {city}, {state} and surrounding communities."
+        cards.append(_build_landing_card("core/map-marker", city, desc, url))
+
+    grid    = _build_card_grid("\n".join(cards))
+    sidebar = build_sidebar(sidebar_ref)
+    return banner + "\n\n" + _build_landing_outer(grid, sidebar)
+
+
+def build_services_page(config):
+    """Card grid of all services — one card per service with per-service icon."""
+    niche          = config.get("niche", "Services")
+    niche_short    = niche.replace(" Services", "").replace(" Service", "")
+    primary_city   = config.get("primary_city", "")
+    primary_state  = config.get("primary_state", "")
+    services       = config.get("services", [])
+    banner_cta_ref = config.get("banner_cta_ref", 0)
+    sidebar_ref    = config.get("sidebar_block_ref", 0)
+    svc_descs      = config.get("service_card_descs", {})
+    city_slug      = f"{primary_city.lower().replace(' ', '-')}-{primary_state.lower()}"
+
+    banner = build_banner(
+        f"{niche_short} Services",
+        f"Professional {niche_short.lower()} services in {primary_city}, {primary_state}.",
+        banner_cta_ref
+    )
+
+    cards = []
+    for svc in services:
+        svc_slug = svc.lower().replace(" ", "-").replace(",", "")
+        url      = f"/{svc_slug}-in-{city_slug}/"
+        icon     = _SERVICE_ICONS.get(svc_slug, _SERVICE_ICON_DEFAULT)
+        desc     = svc_descs.get(svc) or (
+            f"Professional {svc.lower()} serving {primary_city}, {primary_state}"
+            f" and the surrounding area."
+        )
+        cards.append(_build_landing_card(icon, svc, desc, url))
+
+    grid    = _build_card_grid("\n".join(cards))
+    sidebar = build_sidebar(sidebar_ref)
+    return banner + "\n\n" + _build_landing_outer(grid, sidebar)
+
+
+
 def generate_static_pages(config):
     """Create or update About, FAQ, and Contact pages; add footer map widget."""
     wp_path = config["wp_path"]
     pages = [
-        ("About",   build_about_page(config)),
-        ("FAQ",     build_faq_page(config)),
-        ("Contact", build_contact_page(config)),
+        ("About",         build_about_page(config)),
+        ("FAQ",           build_faq_page(config)),
+        ("Contact",       build_contact_page(config)),
+        ("Service Areas", build_service_areas_page(config)),
+        ("Services",      build_services_page(config)),
     ]
     for title, markup in pages:
         existing_id = get_existing_page_id(title, wp_path)
@@ -1207,6 +1466,25 @@ def update_nav_menus(config):
                     log(f"Footer Services: added {service}")
                 except Exception as e:
                     warn(f"Could not add to Footer Services: {service} — {e}")
+
+    # Update "Service Areas" and "Services" parent items from # to real page URLs
+    try:
+        items_raw = wp(
+            f"menu item list {primary_menu_id} --fields=db_id,title,url --format=json",
+            wp_path
+        )
+        items = json.loads(items_raw) if items_raw.strip().startswith("[") else []
+        url_map = {
+            "Service Areas": "/service-areas/",
+            "Services":      "/services/",
+        }
+        for item in items:
+            target_url = url_map.get(item["title"])
+            if target_url and item["url"] == "#":
+                wp(f"menu item update {item['db_id']} --link={target_url}", wp_path)
+                log(f"Primary Menu: '{item['title']}' link updated to {target_url}")
+    except Exception as e:
+        warn(f"Could not update parent menu item links: {e}")
 
     log("Nav menus updated")
 
