@@ -1588,6 +1588,30 @@ def build_homepage(cfg, wp_path):
     if result and result.strip():
         log(result.strip())
 
+    # Trigger Spectra CSS regeneration for the homepage
+    _spectra_php = (
+        "<?php\n"
+        f"$post_id = {page_id};\n"
+        "if (!class_exists('UAGB_Post_Assets')) { echo '[!] Spectra not active\n'; exit; }\n"
+        "delete_post_meta($post_id, '_uag_page_assets');\n"
+        "delete_post_meta($post_id, '_uag_css_file_name');\n"
+        "delete_post_meta($post_id, '_uag_js_file_name');\n"
+        "$post = get_post($post_id);\n"
+        "$assets = new UAGB_Post_Assets($post_id);\n"
+        "$assets->prepare_assets($post);\n"
+        "$assets->generate_asset_files();\n"
+        "$meta = get_post_meta($post_id, '_uag_page_assets', true);\n"
+        "if (!empty($meta['css'])) { echo '[✓] Spectra CSS regenerated (' . strlen($meta['css']) . ' bytes)\n'; }\n"
+        "else { echo '[!] Spectra CSS meta empty after regeneration\n'; }\n"
+    )
+    _spectra_php_path = f"/tmp/spectra-css-{_pid}.php"
+    with open(_spectra_php_path, "w") as _sf:
+        _sf.write(_spectra_php)
+    _sr = wp(f"eval-file {_spectra_php_path}", wp_path)
+    if _sr and _sr.strip():
+        log(_sr.strip())
+    _os.unlink(_spectra_php_path)
+
 
 def generate_static_pages(config):
     """Create or update About, FAQ, and Contact pages; add footer map widget."""
