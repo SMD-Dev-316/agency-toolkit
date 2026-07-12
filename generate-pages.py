@@ -957,8 +957,6 @@ def build_faq_page(config):
          "answer": "We serve the local area and surrounding communities. Contact us to confirm service to your location."},
         {"question": "How do I request a free quote?",
          "answer": "You can request a free quote by filling out our online form or calling us directly. We typically respond the same business day."},
-        {"question": "Are you licensed and insured?",
-         "answer": "Yes. We are fully licensed and insured, so you can feel confident hiring us for your home or business."},
         {"question": "How quickly can you schedule service?",
          "answer": "We offer flexible scheduling and typically respond to requests within one business day. Emergency service may be available."},
     ])
@@ -1284,9 +1282,317 @@ def build_services_page(config):
 
 
 
+
+
+
+
+
+
+# ─── Homepage section builders (template-based — see templates/homepage.html)
+
+"""
+Homepage builder — template-based, loads templates/homepage.html from agency-toolkit.
+All _hp_* section builders below are superseded by build_homepage() but kept for reference.
+"""
+import re, os
+
+
+# ── Unicode escape decoder ─────────────────────────────────────────────────────
+
+def _decode_safe_unicode_escapes(s):
+    """
+    Decode \\uXXXX JSON escapes that wp_insert_post would strip (breaking CSS vars).
+    Skips \\u0022 (\") and \\u005c (\\) which would break JSON structure.
+    """
+    def _replace(m):
+        code = m.group(1).lower()
+        if code in ('0022', '005c'):  # " and \ — keep escaped
+            return m.group(0)
+        return chr(int(code, 16))
+    return re.sub(r'\\u([0-9a-fA-F]{4})', _replace, s)
+
+
+# ── Config helpers ─────────────────────────────────────────────────────────────
+
+def _cfg_state_abbr(cfg):
+    return cfg.get("state_abbr", "")
+
+def _cfg_state_full(cfg):
+    return cfg.get("state_full", cfg.get("state_abbr", ""))
+
+
+# ── Homepage builder (template-based) ─────────────────────────────────────────
+
+def build_homepage(cfg, wp_path):
+    """
+    Loads templates/homepage.html, applies config substitutions, and pushes
+    the result to the homepage (page ID 66 or cfg['homepage_id']).
+    """
+    toolkit   = "/var/www/agency-toolkit"
+    tmpl_path = os.path.join(toolkit, "templates", "homepage.html")
+
+    with open(tmpl_path, "r") as f:
+        content = f.read()
+
+    # Decode JSON unicode escapes before pushing — wp_insert_post strips backslashes
+    # via wp_unslash(), turning - → u002d (invalid CSS). Decode first so only
+    # real characters reach WordPress.
+    content = _decode_safe_unicode_escapes(content)
+
+    # ── Config vars ────────────────────────────────────────────────────────────
+    city       = cfg["primary_city"]
+    state_abbr = cfg.get("state_abbr", cfg.get("primary_state", ""))
+    city_slug  = city.lower().replace(" ", "-")
+    state_slug = state_abbr.lower()
+    phone      = cfg.get("phone", "(000) 000-0000")
+    phone_tel  = re.sub(r"\D", "", phone)
+    biz_name   = cfg.get("business_name", f"{city} Drain Cleaning")
+    svc_name   = cfg.get("primary_service_name", "Drain Cleaning")
+    rar_base   = cfg.get("rar_image_base", "")
+    site_url   = re.sub(r"/wp-content/.*$", "", rar_base).rstrip("/") if rar_base else cfg.get("site_url", "")
+
+    # Normalize services to list of dicts with slug key
+    raw_services = cfg.get("services", [])
+    services = []
+    for svc in raw_services:
+        if isinstance(svc, dict):
+            services.append(svc)
+        else:
+            services.append({"slug": str(svc).lower().replace(" ", "-"), "name": str(svc)})
+
+    # ── 1. Domain (covers all image URLs and media library refs) ──────────────
+    content = content.replace("https://rar01-1vyi.1wp.site", site_url)
+
+    # ── 1.5. Homepage image slots ──────────────────────────────────────────────
+    # Replaces placeholder images with /rar/ slot images for each niche.
+    # niche_slug derived from primary_service_name: "Drain Cleaning" → "drain-cleaning"
+    niche_slug = svc_name.lower().replace(" ", "-")
+    old_base   = f"{site_url}/wp-content/uploads/2026/07"
+
+    # Hero background — replace all WP-sized variants; careful to exclude -2 variants
+    hero_old = f"{old_base}/placeholder-image-rectangle"
+    hero_new = f"{rar_base}home-hero-{niche_slug}-01.jpg"
+    for sfx in (".png", "-1024x683.png", "-300x200.png", "-150x150.png"):
+        content = content.replace(f"{hero_old}{sfx}", hero_new)
+
+    # Summary section image — core wp:image block in 'Drain Cleaning Services Near You'
+    # Uses same placeholder as about/trust-badges but is a separate core block (id 63).
+    _old_summary_img  = f"{old_base}/placeholder-image-rectangle-2-1024x683.png"
+    _old_summary_blk  = (
+        '<!-- wp:image {"id":63,"sizeSlug":"large","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-large">'
+        f'<img src="{_old_summary_img}" alt="" class="wp-image-63"/></figure>\n'
+        '<!-- /wp:image -->'
+    )
+    _new_summary_blk  = (
+        '<!-- wp:image {"sizeSlug":"large","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-large">'
+        f'<img src="{rar_base}home-summary-{niche_slug}-01.jpg" alt=""/></figure>\n'
+        '<!-- /wp:image -->'
+    )
+    content = content.replace(_old_summary_blk, _new_summary_blk, 1)
+
+    # About section image — target only block 18d94f78 (not the 4 trust badge blocks
+    # which share the same placeholder; those stay as-is until trust badge images are ready)
+    about_marker = '<!-- wp:uagb/image {"block_id":"18d94f78"'
+    about_start  = content.find(about_marker)
+    if about_start >= 0:
+        _end_tag  = "<!-- /wp:uagb/image -->"
+        about_end = content.find(_end_tag, about_start) + len(_end_tag)
+        chunk = content[about_start:about_end]
+        chunk = chunk.replace(
+            f"{old_base}/placeholder-image-rectangle-2",
+            f"{rar_base}home-about-{niche_slug}-01"
+        )
+        # Fix extension: the new file is .jpg, sized variants now share the same .jpg
+        chunk = chunk.replace(
+            f"home-about-{niche_slug}-01-1024x683.png", f"home-about-{niche_slug}-01.jpg"
+        )
+        chunk = chunk.replace(
+            f"home-about-{niche_slug}-01.png", f"home-about-{niche_slug}-01.jpg"
+        )
+        content = content[:about_start] + chunk + content[about_end:]
+
+    # Parallax background — replace all WP-sized variants
+    parallax_old = f"{old_base}/placeholder-wide-narrow-2"
+    parallax_new = f"{rar_base}home-parallax-{niche_slug}-01.jpg"
+    for sfx in (".jpg", "-1024x478.jpg", "-300x140.jpg", "-150x150.jpg"):
+        content = content.replace(f"{parallax_old}{sfx}", parallax_new)
+
+    # ── 2. Hero ────────────────────────────────────────────────────────────────
+    content = content.replace(
+        "Professional Drain Cleaning in Louisville, KY",
+        f"Professional {svc_name} in {city}, {state_abbr}"
+    )
+    content = content.replace(
+        "Fast, reliable drain cleaning services for homeowners and businesses "
+        "in Louisville and surrounding areas. Available 24/7 for emergencies.",
+        f"Fast, reliable {svc_name.lower()} services for homeowners and businesses "
+        f"in {city} and surrounding areas. Available 24/7 for emergencies."
+    )
+    content = content.replace("(000) 000-0000", phone)
+    content = content.replace("tel:10000000000", f"tel:1{phone_tel}")
+
+    # ── 3. Credentials bar ────────────────────────────────────────────────────
+    content = content.replace(
+        "KY Licensed Contractor • Fully Bonded &amp; Insured",
+        f"{city}'s Trusted Drain Cleaning Service • 24/7 Emergency Response"
+    )
+
+    # ── 4. About section ──────────────────────────────────────────────────────
+    content = content.replace(
+        "Your Local Drain Cleaning Experts",
+        f"Your Local {svc_name} Experts"
+    )
+    # Handle both curly and straight apostrophes
+    for apos in ["’", "'"]:
+        content = content.replace(
+            f"Louisville Drain Cleaning is Louisville{apos}s trusted source for professional drain cleaning services.",
+            f"{biz_name} is {city}{apos}s trusted source for professional {svc_name.lower()} services."
+        )
+    content = content.replace(
+        "throughout Louisville, KY and surrounding communities",
+        f"throughout {city}, {state_abbr} and surrounding communities"
+    )
+
+    # ── 4b. Parallax section — parameterize city name ──────────────────────
+    content = content.replace(
+        "local drain experts who know Louisville",
+        f"local drain experts who know {city}"
+    )
+
+    # ── 5. Service card descriptions ─────────────────────────────────────────
+    # Fix Clogged Drain Repair: title was duplicated in the description
+    # JSON form (unicode-escaped <br>)
+    content = content.replace(
+        "Clogged Drain Repair\\u003cbr\\u003eProfessional clogged drain repair services in Louisville, KY. Fast, reliable, and affordable.",
+        f"Professional clogged drain repair services in {city}, {state_abbr}. Fast, reliable, and affordable."
+    )
+    # HTML form
+    content = content.replace(
+        "Clogged Drain Repair<br>Professional clogged drain repair services in Louisville, KY. Fast, reliable, and affordable.",
+        f"Professional clogged drain repair services in {city}, {state_abbr}. Fast, reliable, and affordable."
+    )
+    # All other service descriptions
+    content = content.replace(
+        "in Louisville, KY. Fast, reliable, and affordable.",
+        f"in {city}, {state_abbr}. Fast, reliable, and affordable."
+    )
+
+    # ── 6. Service card links — replace "#" in config service order ───────────
+    for svc in services:
+        slug = svc.get("slug", "")
+        link = f"/{slug}-{city_slug}-{state_slug}/"
+        content = content.replace('"link":"#"', f'"link":"{link}"', 1)
+        content = content.replace('href="#"', f'href="{link}"', 1)
+
+    # ── 7. Service card images — fix per-service rect images ─────────────────
+    # All 7 cards use rect-drain-cleaning.jpg in the template.
+    # Use a position pointer so each card's 7 URL slots are replaced in sequence.
+    drain_img = f"{site_url}/wp-content/uploads/rar/rect-drain-cleaning.jpg"
+    _pos = 0
+    for svc in services:
+        slug    = svc.get("slug", "")
+        correct = f"{rar_base}rect-{slug}.jpg"
+        for _ in range(7):
+            idx = content.find(drain_img, _pos)
+            if idx == -1:
+                break
+            content = content[:idx] + correct + content[idx + len(drain_img):]
+            _pos = idx + len(correct)
+
+    # ── 8. How It Works — fix step 2 (duplicate of step 1) ───────────────────
+    anchor = "uagb-block-335d5f77"
+    pos    = content.find(anchor)
+    if pos >= 0:
+        tail = content[pos:]
+        tail = tail.replace(
+            '<h4 class="wp-block-heading has-text-align-center">Call or Request Online</h4>',
+            '<h4 class="wp-block-heading has-text-align-center">We Arrive &amp; Diagnose</h4>',
+            1
+        )
+        for em in ["—", "--"]:
+            tail = tail.replace(
+                f"Contact us any time {em} we’re available 24/7. "
+                "Tell us about your drain cleaning problem and we’ll schedule a fast visit.",
+                "A drain expert arrives at your door fast, pinpoints the exact cause "
+                f"of the problem, and walks you through the solution {em} no surprises.",
+                1
+            )
+            tail = tail.replace(
+                f"Contact us any time {em} we're available 24/7. "
+                "Tell us about your drain cleaning problem and we'll schedule a fast visit.",
+                "A drain expert arrives at your door fast, pinpoints the exact cause "
+                f"of the problem, and walks you through the solution {em} no surprises.",
+                1
+            )
+        content = content[:pos] + tail
+
+
+
+    # ── 10. Service areas map embed ───────────────────────────────────────────
+    map_embed = cfg.get("google_maps_embed", "")
+    if not map_embed:
+        city_enc  = city.replace(" ", "+")
+        map_embed = f"https://maps.google.com/maps?q={city_enc}+{state_slug}&output=embed"
+    map_html = (
+        f'<iframe src="{map_embed}" width="100%" height="400" '
+        f'style="border:0;" allowfullscreen="" loading="lazy" '
+        f'referrerpolicy="no-referrer-when-downgrade"></iframe>'
+    )
+    content = content.replace("<p>Hello</p>", map_html)
+
+    # ── 11. Service areas headings / text ─────────────────────────────────────
+    content = content.replace(
+        "Serving Louisville, KY and Surrounding Areas",
+        f"Serving {city}, {state_abbr} and Surrounding Areas"
+    )
+    content = content.replace(
+        "Drain Cleaning Services Near You",
+        f"{svc_name} Services Near You"
+    )
+    content = content.replace(
+        "We proudly serve Louisville and communities throughout KY.",
+        f"We proudly serve {city} and communities throughout {state_abbr}."
+    )
+
+    # ── 12. Push to WordPress via eval-file (avoids shell quoting issues) ─────
+    page_id  = cfg.get("homepage_id", 66)
+    tmp_html = "/tmp/hp-content.html"
+    tmp_php  = "/tmp/hp-update.php"
+
+    with open(tmp_html, "w") as f:
+        f.write(content)
+
+    php = (
+        "<?php\n"
+        # Ensure Spectra can write its CSS files (directory may not exist on new sites)
+        "$upload = wp_upload_dir();\n"
+        "$uagb_dir = $upload['basedir'] . '/uagb-blocks';\n"
+        "if (!is_dir($uagb_dir)) { wp_mkdir_p($uagb_dir); }\n"
+        f"$content = file_get_contents('{tmp_html}');\n"
+        # Use $wpdb->update() instead of wp_update_post() to bypass wp_unslash(),
+        # which strips backslashes from \uXXXX sequences inside JSON block attributes,
+        # corrupting CSS variable names like --ast-global-color-N → u002du002dast-global-color-N.
+        "global $wpdb;\n"
+        f"$result = $wpdb->update($wpdb->posts, ['post_content' => $content, 'post_status' => 'publish'], ['ID' => {page_id}], ['%s', '%s'], ['%d']);\n"
+        "if ($result === false) { echo '[!] DB error: ' . $wpdb->last_error . \"\\n\"; }\n"
+        f"else {{ echo '[✓] Homepage (ID {page_id}) updated.' . \"\\n\"; }}\n"
+    )
+    with open(tmp_php, "w") as f:
+        f.write(php)
+
+    result = wp(f"eval-file {tmp_php}", wp_path)
+    if result and result.strip():
+        log(result.strip())
+
+
 def generate_static_pages(config):
     """Create or update About, FAQ, and Contact pages; add footer map widget."""
     wp_path = config["wp_path"]
+    # Homepage handles its own WP push via eval-file (returns None — not safe for upsert_page)
+    build_homepage(config, wp_path)
+
     pages = [
         ("About",         build_about_page(config)),
         ("FAQ",           build_faq_page(config)),
@@ -1299,6 +1605,26 @@ def generate_static_pages(config):
         post_id = upsert_page(title, markup, wp_path, existing_id)
         action = "Updated" if existing_id else "Created"
         log(f"{action} {title} page (ID: {post_id})")
+
+    # Footer copyright + disclaimer
+    _disclaimer = (
+        "Copyright &copy; [current_year] [site_title]<br><br>"
+        "This website shares information with local, licensed, and insured service providers "
+        "who will reach out and contact you with the information provided here."
+    )
+    _disc_php = (
+        "<?php\n"
+        "$s = get_option('astra-settings', []);\n"
+        f"$s['footer-copyright-editor'] = '{_disclaimer}';\n"
+        "update_option('astra-settings', $s);\n"
+        "echo 'ok';\n"
+    )
+    _disc_php_path = '/tmp/set_footer_disclaimer.php'
+    with open(_disc_php_path, 'w') as _dph:
+        _dph.write(_disc_php)
+    wp(f'eval-file {_disc_php_path}', wp_path)
+    import os as _os; _os.unlink(_disc_php_path)
+    log('Footer disclaimer set')
 
     # Footer map widget (Column 4) — city-specific Google Maps embed
     city  = config.get("primary_city", "")
@@ -1608,6 +1934,25 @@ def main():
 
     if args.update or args.static_pages:
         section("Nav Menus")
+        wp_path = config["wp_path"]
+        # Set Home as the static front page
+        try:
+            _home_id = str(config.get("homepage_id", ""))
+            if not _home_id:
+                _home_raw = wp(
+                    "post list --post_type=page --post_slug=home --field=ID --format=ids",
+                    wp_path
+                )
+                _home_id = _home_raw.strip().split()[0] if _home_raw.strip() else ""
+            if _home_id.isdigit():
+                wp("option update show_on_front page", wp_path)
+                wp(f"option update page_on_front {_home_id}", wp_path)
+                log(f"Front page set to Home (ID {_home_id})")
+            else:
+                warn("Home page ID not found - set front page manually")
+        except Exception as _fe:
+            warn(f"Could not set front page: {_fe}")
+
         update_nav_menus(config)
 
     log_path = "/tmp/" + os.path.basename(args.config).replace(".json", "-results.json")

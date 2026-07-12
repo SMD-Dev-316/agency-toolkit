@@ -414,8 +414,10 @@ if [ -z "$FOOTER_NAV_ID" ]; then
 else
     warn "Menu already exists: Footer Navigation (ID: $FOOTER_NAV_ID)"
 fi
-wp menu item add-post $FOOTER_NAV_ID $HOME_ID    --title="Home"
-wp menu item add-post $FOOTER_NAV_ID $ABOUT_ID   --title="About"
+wp menu item add-post   $FOOTER_NAV_ID $HOME_ID    --title="Home"
+wp menu item add-custom $FOOTER_NAV_ID "Services"      "/services/"
+wp menu item add-custom $FOOTER_NAV_ID "Service Areas" "/service-areas/"
+wp menu item add-post   $FOOTER_NAV_ID $ABOUT_ID   --title="About"
 wp menu item add-post $FOOTER_NAV_ID $FAQ_ID     --title="FAQ"
 wp menu item add-post $FOOTER_NAV_ID $CONTACT_ID --title="Contact"
 wp menu item add-post $FOOTER_NAV_ID $QUOTE_ID   --title="Free Quote"
