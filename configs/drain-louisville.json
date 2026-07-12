@@ -168,5 +168,63 @@
   "homepage_id": 66,
   "rar_image_base": "https://localdrainexpert.com/wp-content/uploads/rar/",
   "contact_block_ref": 406,
-  "contact_form_id": "1"
+  "contact_form_id": "1",
+  "service_images": {
+    "drain-cleaning": {
+      "wide": [
+        "wide-drain-cleaning-1.jpg",
+        "wide-drain-cleaning-2.jpg",
+        "wide-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-drain-cleaning.jpg"
+    },
+    "clogged-drain-repair": {
+      "wide": [
+        "wide-clogged-drain-repair-1.jpg",
+        "wide-clogged-drain-repair-2.jpg",
+        "wide-clogged-drain-repair-3.jpg"
+      ],
+      "rect": "rect-clogged-drain-repair.jpg"
+    },
+    "hydro-jetting": {
+      "wide": [
+        "wide-hydro-jetting-1.jpg",
+        "wide-hydro-jetting-2.jpg",
+        "wide-hydro-jetting-3.jpg"
+      ],
+      "rect": "rect-hydro-jetting.jpg"
+    },
+    "sewer-drain-cleaning": {
+      "wide": [
+        "wide-sewer-drain-cleaning-1.jpg",
+        "wide-sewer-drain-cleaning-2.jpg",
+        "wide-sewer-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-sewer-drain-cleaning.jpg"
+    },
+    "emergency-drain-service": {
+      "wide": [
+        "wide-emergency-drain-service-1.jpg",
+        "wide-emergency-drain-service-2.jpg",
+        "wide-emergency-drain-service-3.jpg"
+      ],
+      "rect": "rect-emergency-drain-service.jpg"
+    },
+    "main-drain-cleaning": {
+      "wide": [
+        "wide-main-drain-cleaning-1.jpg",
+        "wide-main-drain-cleaning-2.jpg",
+        "wide-main-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-main-drain-cleaning.jpg"
+    },
+    "kitchen-drain-cleaning": {
+      "wide": [
+        "wide-kitchen-drain-cleaning-1.jpg",
+        "wide-kitchen-drain-cleaning-2.jpg",
+        "wide-kitchen-drain-cleaning-3.jpg"
+      ],
+      "rect": "rect-kitchen-drain-cleaning.jpg"
+    }
+  }
 }

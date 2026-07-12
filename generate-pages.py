@@ -1482,7 +1482,7 @@ def build_homepage(cfg, wp_path):
     # ── 6. Service card links — replace "#" in config service order ───────────
     for svc in services:
         slug = svc.get("slug", "")
-        link = f"/{slug}-{city_slug}-{state_slug}/"
+        link = f"/{slug}-in-{city_slug}-{state_slug}/"
         content = content.replace('"link":"#"', f'"link":"{link}"', 1)
         content = content.replace('href="#"', f'href="{link}"', 1)
 
@@ -1558,8 +1558,10 @@ def build_homepage(cfg, wp_path):
 
     # ── 12. Push to WordPress via eval-file (avoids shell quoting issues) ─────
     page_id  = cfg.get("homepage_id", 66)
-    tmp_html = "/tmp/hp-content.html"
-    tmp_php  = "/tmp/hp-update.php"
+    import os as _os
+    _pid = _os.getpid()
+    tmp_html = f"/tmp/hp-content-{_pid}.html"
+    tmp_php  = f"/tmp/hp-update-{_pid}.php"
 
     with open(tmp_html, "w") as f:
         f.write(content)
@@ -1818,6 +1820,59 @@ def update_nav_menus(config):
                 log(f"Primary Menu: '{item['title']}' link updated to {target_url}")
     except Exception as e:
         warn(f"Could not update parent menu item links: {e}")
+
+    # Footer Navigation menu — add Services + Service Areas pages
+    footer_nav_id = None
+    for m in menus:
+        if m["name"] == "Footer Navigation":
+            footer_nav_id = str(m["term_id"])
+    if footer_nav_id:
+        try:
+            fn_raw = wp(
+                f"menu item list {footer_nav_id} --fields=db_id,title,url --format=json",
+                wp_path
+            )
+            fn_items = json.loads(fn_raw) if fn_raw.strip().startswith("[") else []
+            fn_titles = {i["title"] for i in fn_items}
+            fn_pages = [
+                ("Services",      "/services/"),
+                ("Service Areas", "/service-areas/"),
+            ]
+            # Insert after Home (position 2 and 3), so find current max position
+            # and just append — WP CLI assigns positions automatically
+            for title, url in fn_pages:
+                if title in fn_titles:
+                    log(f"Footer Navigation: '{title}' already present")
+                    continue
+                # Find Home item to insert after
+                home_item = next((i for i in fn_items if i["title"] == "Home"), None)
+                if home_item:
+                    wp(
+                        f"menu item add-custom {footer_nav_id} '{title}' {url}",
+                        wp_path
+                    )
+                    log(f"Footer Navigation: added '{title}'")
+                else:
+                    wp(
+                        f"menu item add-custom {footer_nav_id} '{title}' {url}",
+                        wp_path
+                    )
+                    log(f"Footer Navigation: added '{title}'")
+            # Set correct positions: Home=1, Services=2, Service Areas=3, rest follow
+            fn_raw2 = wp(
+                f"menu item list {footer_nav_id} --fields=db_id,title --format=json",
+                wp_path
+            )
+            fn_items2 = json.loads(fn_raw2) if fn_raw2.strip().startswith("[") else []
+            order_map = {"Home": 1, "Services": 2, "Service Areas": 3,
+                         "About": 4, "Contact": 5, "Free Quote": 6, "FAQ": 7}
+            for item in fn_items2:
+                pos = order_map.get(item["title"])
+                if pos is not None:
+                    wp(f"menu item update {item['db_id']} --position={pos}", wp_path)
+            log("Footer Navigation: positions updated")
+        except Exception as e:
+            warn(f"Could not update Footer Navigation: {e}")
 
     log("Nav menus updated")
 
