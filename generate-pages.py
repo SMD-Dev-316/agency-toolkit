@@ -1835,6 +1835,52 @@ def generate_static_pages(config):
         except Exception as e:
             warn(f"Could not update footer map widget: {e}")
 
+    # Footer contact widget (Column 3) — phone number placeholder patch only.
+    # provision-site.sh creates this widget with a literal "(000) 000-0000"
+    # placeholder that nothing else ever replaces, since it's a widget, not
+    # page content — build_homepage()'s phone swap never reaches it. Patch
+    # just the phone fields in place, leaving hours/email exactly as they
+    # are: hours is a separate pending redesign, and email display is a
+    # separate pending decision (see roadmap) — this must not get ahead of
+    # either. Str-replace on the literal placeholder is naturally idempotent
+    # and safe to re-run: once replaced, the placeholder no longer matches,
+    # so a later run (or a manually-customized number) is left untouched.
+    _phone = config.get("phone", "")
+    if _phone:
+        try:
+            raw = wp("widget list footer-widget-6 --format=json", wp_path)
+            widgets = json.loads(raw) if raw.strip().startswith("[") else []
+            block_widgets = [w for w in widgets if w["id"].startswith("block-")]
+            if block_widgets:
+                instance_id = block_widgets[0]["id"].replace("block-", "")
+                _phone_tel = re.sub(r"\D", "", _phone)
+                _phone_esc = _phone.replace("\\", "\\\\").replace("'", "\\'")
+                php_script = (
+                    "<?php\n"
+                    "$opts = get_option('widget_block');\n"
+                    f"if (isset($opts[{instance_id}]['content'])) {{\n"
+                    f"    $c = $opts[{instance_id}]['content'];\n"
+                    "    $c = str_replace('tel:10000000000', 'tel:1" + _phone_tel + "', $c);\n"
+                    "    $c = str_replace('(000) 000-0000', '" + _phone_esc + "', $c);\n"
+                    f"    $opts[{instance_id}]['content'] = $c;\n"
+                    "    update_option('widget_block', $opts);\n"
+                    "    echo 'ok';\n"
+                    "} else { echo 'not found'; }\n"
+                )
+                php_path = "/tmp/set_footer_contact_phone.php"
+                with open(php_path, "w") as _fh:
+                    _fh.write(php_script)
+                result = wp(f"eval-file {php_path}", wp_path)
+                import os; os.unlink(php_path)
+                if "ok" in result:
+                    log(f"Footer contact widget phone updated: {_phone}")
+                else:
+                    warn(f"Footer contact widget phone patch returned: {result}")
+            else:
+                warn("Footer contact widget (footer-widget-6) not found — phone not patched")
+        except Exception as e:
+            warn(f"Could not update footer contact widget phone: {e}")
+
 
 # ============================================================
 # NAV MENU UPDATER
