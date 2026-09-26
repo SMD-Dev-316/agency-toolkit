@@ -287,24 +287,44 @@ cp "$PLACEHOLDER_SOURCE/placeholder-image-rectangle.png" "$PLACEHOLDER_DEST/" 2>
 # ============================================================
 # PLACEHOLDER LOGO
 # ============================================================
+# Real logo swap happens through WP Admin's own Site Identity upload —
+# that native flow creates the attachment, generates correct thumbnail
+# sizes for the image's actual dimensions, and sets the theme mod, all
+# in one step. No fixed-path file-drop trick needed here (unlike the
+# other pool/swap images, which are referenced by raw URL and bypass
+# WP's attachment system — the logo goes through Astra's native
+# rendering, which a plain file swap wouldn't refresh correctly).
+#
+# Locked by existence: if custom_logo is already set to anything — the
+# placeholder from a prior run, or a real logo uploaded by hand — this
+# section is skipped entirely. Protects against provision-site.sh ever
+# being re-run against an already-provisioned site and silently
+# overwriting a manually-uploaded real logo. Same idempotent "skip if
+# already exists" pattern already used for pages/menus elsewhere in
+# this script, just missing from this one section until now.
 section "Setting Placeholder Logo"
 
-LOGO_BLACK="$PLUGINS_DIR/placeholder-logo-black.png"
-LOGO_WHITE="$PLUGINS_DIR/placeholder-logo-white.png"
-
-if [ -f "$LOGO_BLACK" ]; then
-    LOGO_BLACK_ID=$(wp media import "$LOGO_BLACK" --porcelain)
-    wp theme mod set custom_logo $LOGO_BLACK_ID
-    log "Placeholder logo (black) set as site logo (ID: $LOGO_BLACK_ID)"
+EXISTING_MODS=$(wp theme mod list --format=json 2>/dev/null)
+if echo "$EXISTING_MODS" | grep -q '"custom_logo"'; then
+    warn "custom_logo is already set — locked, skipping (this site was already provisioned)"
 else
-    warn "placeholder-logo-black.png not found in $PLUGINS_DIR — skipping"
-fi
+    LOGO_BLACK="$PLUGINS_DIR/placeholder-logo-black.png"
+    LOGO_WHITE="$PLUGINS_DIR/placeholder-logo-white.png"
 
-if [ -f "$LOGO_WHITE" ]; then
-    LOGO_WHITE_ID=$(wp media import "$LOGO_WHITE" --porcelain)
-    log "Placeholder logo (white) imported (ID: $LOGO_WHITE_ID)"
-else
-    warn "placeholder-logo-white.png not found in $PLUGINS_DIR — skipping"
+    if [ -f "$LOGO_BLACK" ]; then
+        LOGO_BLACK_ID=$(wp media import "$LOGO_BLACK" --porcelain)
+        wp theme mod set custom_logo $LOGO_BLACK_ID
+        log "Placeholder logo (black) set as site logo (ID: $LOGO_BLACK_ID)"
+    else
+        warn "placeholder-logo-black.png not found in $PLUGINS_DIR — skipping"
+    fi
+
+    if [ -f "$LOGO_WHITE" ]; then
+        LOGO_WHITE_ID=$(wp media import "$LOGO_WHITE" --porcelain)
+        log "Placeholder logo (white) imported (ID: $LOGO_WHITE_ID)"
+    else
+        warn "placeholder-logo-white.png not found in $PLUGINS_DIR — skipping"
+    fi
 fi
 
 # ============================================================
