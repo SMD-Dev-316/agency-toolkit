@@ -5,3 +5,5 @@ venv/
 cache/
 configs/*-results.json
 patch_*.py
+__pycache__/
+*.pyc

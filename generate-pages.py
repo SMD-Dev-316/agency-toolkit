@@ -1436,7 +1436,7 @@ def build_homepage(cfg, wp_path):
     # ── 3. Credentials bar ────────────────────────────────────────────────────
     content = content.replace(
         "KY Licensed Contractor • Fully Bonded &amp; Insured",
-        f"{city}'s Trusted Drain Cleaning Service • 24/7 Emergency Response"
+        f"{city}'s Trusted {svc_name} Service • 24/7 Emergency Response"
     )
 
     # ── 4. About section ──────────────────────────────────────────────────────
@@ -1455,29 +1455,93 @@ def build_homepage(cfg, wp_path):
         f"throughout {city}, {state_abbr} and surrounding communities"
     )
 
-    # ── 4b. Parallax section — parameterize city name ──────────────────────
-    content = content.replace(
-        "local drain experts who know Louisville",
-        f"local drain experts who know {city}"
-    )
+    # ── 4b. Parallax section — full sentence rewritten in section 9 below ──────
+    # (city-only substring replace removed; see "── 9. Parallax CTA" for the
+    # complete, niche-aware replacement — leaving the partial replace here would
+    # consume half the sentence before section 9 can match the whole thing)
 
-    # ── 5. Service card descriptions ─────────────────────────────────────────
-    # Fix Clogged Drain Repair: title was duplicated in the description
-    # JSON form (unicode-escaped <br>)
-    content = content.replace(
-        "Clogged Drain Repair\\u003cbr\\u003eProfessional clogged drain repair services in Louisville, KY. Fast, reliable, and affordable.",
-        f"Professional clogged drain repair services in {city}, {state_abbr}. Fast, reliable, and affordable."
-    )
-    # HTML form
-    content = content.replace(
-        "Clogged Drain Repair<br>Professional clogged drain repair services in Louisville, KY. Fast, reliable, and affordable.",
-        f"Professional clogged drain repair services in {city}, {state_abbr}. Fast, reliable, and affordable."
-    )
-    # All other service descriptions
-    content = content.replace(
-        "in Louisville, KY. Fast, reliable, and affordable.",
-        f"in {city}, {state_abbr}. Fast, reliable, and affordable."
-    )
+    # ── 5/7. Service cards — title, description, and image (config-driven) ────
+    # The template hardcodes all 7 cards to the original drain services: only
+    # the image URL and link (section 6) were ever swapped per-niche, so a
+    # non-drain site previously shipped with correct images/links but literal
+    # drain-cleaning titles and descriptions. Walk the cards in file order,
+    # anchored on each card's placeholder image (reliably unique to this
+    # section), and rewrite title + description together with the image so
+    # all three always agree.
+    drain_img   = f"{site_url}/wp-content/uploads/rar/rect-drain-cleaning.jpg"
+    title_open  = '<h3 class="uagb-ifb-title">'
+    desc_open   = '<p class="uagb-ifb-desc">'
+    tempdesc_kv = '"tempHeadingDesc":"'
+    # Start right at the first card's own image block, not document position 0 —
+    # the hero and 4 trust badges each have their own tempHeadingDesc/title
+    # markup earlier in the page, and an anchor search starting at 0 would
+    # lock onto the hero's tempHeadingDesc instead of card 1's.
+    _pos = content.find(drain_img)
+    if _pos == -1:
+        _pos = 0
+    for svc in services:
+        slug      = svc.get("slug", "")
+        svc_label = svc.get("name", slug.replace("-", " ").title())
+        svc_lower = svc_label.lower()
+        # avoid "Commercial Gutter Services services in ..." when the config
+        # name already ends in "service"/"services"
+        tail_word = "" if svc_lower.endswith("service") or svc_lower.endswith("services") else " services"
+        new_img   = f"{rar_base}rect-{slug}.jpg"
+        new_desc  = (
+            f"Professional {svc_lower}{tail_word} in {city}, {state_abbr}. "
+            "Fast, reliable, and affordable."
+        )
+
+        # Image block — verified (all 7 cards, identical structure) to contain
+        # exactly this sequence: 3 JSON URL attrs (url/urlTablet/urlMobile),
+        # then the JSON title attr, then 4 more URL occurrences (3 srcset
+        # variants + rendered src), then the rendered title attr. The JSON
+        # title attr sits BETWEEN two groups of URL occurrences, so a plain
+        # "sweep all URLs, then look for title" approach skips past it — the
+        # URL search jumps straight to the next URL match on the far side of
+        # the title attr, without ever landing on the title text itself.
+        # Processing the exact known sequence in order avoids that.
+        card_ops = (
+            [(drain_img, new_img)] * 3
+            + [('"title":"Drain Cleaning"', f'"title":"{svc_label}"')]
+            + [(drain_img, new_img)] * 4
+            + [('title="Drain Cleaning"', f'title="{svc_label}"')]
+        )
+        for old, new in card_ops:
+            idx = content.find(old, _pos)
+            if idx == -1:
+                continue  # tolerate template drift rather than hard-fail
+            content = content[:idx] + new + content[idx + len(old):]
+            _pos = idx + len(new)
+
+        # tempHeadingDesc — the info-box block's cached JSON copy of the
+        # description. Must be kept in sync with the rendered <p> below, or
+        # reopening this block in the Gutenberg editor re-syncs the old
+        # drain-cleaning text back into the page from this stale attribute.
+        td_start = content.find(tempdesc_kv, _pos)
+        if td_start >= 0:
+            v_start = td_start + len(tempdesc_kv)
+            v_end   = content.find('"', v_start)
+            content = content[:v_start] + new_desc + content[v_end:]
+            _pos = v_start + len(new_desc)
+
+        # Title — first title tag at/after this card's image
+        t_start = content.find(title_open, _pos)
+        if t_start >= 0:
+            t_text_start = t_start + len(title_open)
+            t_text_end   = content.find("</h3>", t_text_start)
+            content = content[:t_text_start] + svc_label + content[t_text_end:]
+            _pos = t_text_start + len(svc_label)
+
+        # Description — rendered <p> (replaces the entire original text,
+        # including the "Clogged Drain Repair<br>..." duplicate-title case,
+        # so no separate special-case is needed)
+        d_start = content.find(desc_open, _pos)
+        if d_start >= 0:
+            d_text_start = d_start + len(desc_open)
+            d_text_end   = content.find("</p>", d_text_start)
+            content = content[:d_text_start] + new_desc + content[d_text_end:]
+            _pos = d_text_start + len(new_desc)
 
     # ── 6. Service card links — replace "#" in config service order ───────────
     for svc in services:
@@ -1485,21 +1549,6 @@ def build_homepage(cfg, wp_path):
         link = f"/{slug}-in-{city_slug}-{state_slug}/"
         content = content.replace('"link":"#"', f'"link":"{link}"', 1)
         content = content.replace('href="#"', f'href="{link}"', 1)
-
-    # ── 7. Service card images — fix per-service rect images ─────────────────
-    # All 7 cards use rect-drain-cleaning.jpg in the template.
-    # Use a position pointer so each card's 7 URL slots are replaced in sequence.
-    drain_img = f"{site_url}/wp-content/uploads/rar/rect-drain-cleaning.jpg"
-    _pos = 0
-    for svc in services:
-        slug    = svc.get("slug", "")
-        correct = f"{rar_base}rect-{slug}.jpg"
-        for _ in range(7):
-            idx = content.find(drain_img, _pos)
-            if idx == -1:
-                break
-            content = content[:idx] + correct + content[idx + len(drain_img):]
-            _pos = idx + len(correct)
 
     # ── 8. How It Works — fix step 2 (duplicate of step 1) ───────────────────
     anchor = "uagb-block-335d5f77"
@@ -1515,18 +1564,78 @@ def build_homepage(cfg, wp_path):
             tail = tail.replace(
                 f"Contact us any time {em} we’re available 24/7. "
                 "Tell us about your drain cleaning problem and we’ll schedule a fast visit.",
-                "A drain expert arrives at your door fast, pinpoints the exact cause "
+                f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause "
                 f"of the problem, and walks you through the solution {em} no surprises.",
                 1
             )
             tail = tail.replace(
                 f"Contact us any time {em} we're available 24/7. "
                 "Tell us about your drain cleaning problem and we'll schedule a fast visit.",
-                "A drain expert arrives at your door fast, pinpoints the exact cause "
+                f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause "
                 f"of the problem, and walks you through the solution {em} no surprises.",
                 1
             )
         content = content[:pos] + tail
+
+    # ── 8b. How It Works — step 1 text (niche-generic; must run AFTER section 8,
+    # since step 1 and step 2 start out as identical text and section 8 needs
+    # the original duplicate intact to tell step 2 apart) ──────────────────────
+    for em in ["—", "--"]:
+        for apos in ["’", "'"]:
+            content = content.replace(
+                f"Contact us any time {em} we{apos}re available 24/7. "
+                f"Tell us about your drain cleaning problem and we{apos}ll schedule a fast visit.",
+                f"Contact us any time {em} we{apos}re available 24/7. "
+                f"Tell us about your {svc_name.lower()} problem and we{apos}ll schedule a fast visit.",
+                1
+            )
+
+    # ── 8c. How It Works — step 3 and section intro ───────────────────────────
+    content = content.replace(
+        "We clear the blockage, walk you through what we found, and clean up before we leave.",
+        "We get the job done, walk you through what we found, and clean up before we leave."
+    )
+    for apos in ["’", "'"]:
+        content = content.replace(
+            f"Getting your drains fixed is simple — here{apos}s what to expect when you call us.",
+            f"Getting the help you need is simple — here{apos}s what to expect when you call us."
+        )
+
+    # ── 8d. Trust badges — 3 of the 4 have drain-specific descriptions ────────
+    content = content.replace(
+        "Available today for drain cleaning, repairs, and emergency calls.",
+        f"Available today for {svc_name.lower()}, repairs, and emergency calls."
+    )
+    for apos in ["’", "'"]:
+        content = content.replace(
+            f"Drain emergencies don{apos}t keep business hours — neither do we.",
+            f"{svc_name} emergencies don{apos}t keep business hours — neither do we."
+        )
+    content = content.replace(
+        "We arrive quickly and resolve your drain cleaning problem right the first time.",
+        f"We arrive quickly and resolve your {svc_name.lower()} problem right the first time."
+    )
+
+    # ── 8e. About section — second paragraph (drops drain-specific examples) ──
+    for apos in ["’", "'"]:
+        content = content.replace(
+            f"We use the latest equipment and proven techniques to diagnose and resolve "
+            f"drainage problems fast. Whether it{apos}s a backed-up kitchen sink or a main "
+            f"line blockage, we{apos}re here to help.",
+            f"We use the latest equipment and proven techniques to get the job done right "
+            f"the first time. No matter the size of the job, we{apos}re here to help."
+        )
+
+    # ── 8f. Parallax CTA — full heading + sentence (replaces the old partial
+    # "local drain experts who know Louisville" substring replace) ────────────
+    content = content.replace("Get It Fixed Today.", "Get Started Today.")
+    content = content.replace(
+        "Same-day service from local drain experts who know Louisville. Fast response, "
+        "upfront pricing, and no runaround. Just the drain solution you need.",
+        f"Same-day service from local {svc_name.lower()} experts who know {city}. Fast "
+        f"response, upfront pricing, and no runaround. Just the {svc_name.lower()} "
+        "solution you need."
+    )
 
 
 
@@ -1651,6 +1760,33 @@ def generate_static_pages(config):
     wp(f'eval-file {_disc_php_path}', wp_path)
     import os as _os; _os.unlink(_disc_php_path)
     log('Footer disclaimer set')
+
+    # Above-header bar (header-html-1) — city/state-specific "Serving X" text.
+    # templates/astra-settings.json ships this hardcoded to the site it was
+    # originally exported from ("Serving Raleigh, NC, and Surrounding
+    # Communities"); every site must overwrite it with its own city/state at
+    # provision time or it silently advertises the wrong service area.
+    _city  = config.get("primary_city", "")
+    _state = config.get("state_abbr", config.get("primary_state", ""))
+    if _city and _state:
+        _header_html = f"Serving {_city}, {_state}, and Surrounding Communities"
+        # PHP single-quoted string escaping — real US city names (O'Fallon,
+        # Coeur d'Alene, etc.) contain apostrophes that would otherwise break
+        # out of the string and corrupt the eval'd PHP.
+        _header_html_esc = _header_html.replace("\\", "\\\\").replace("'", "\\'")
+        _hdr_php = (
+            "<?php\n"
+            "$s = get_option('astra-settings', []);\n"
+            f"$s['header-html-1'] = '{_header_html_esc}';\n"
+            "update_option('astra-settings', $s);\n"
+            "echo 'ok';\n"
+        )
+        _hdr_php_path = '/tmp/set_header_html.php'
+        with open(_hdr_php_path, 'w') as _hph:
+            _hph.write(_hdr_php)
+        wp(f'eval-file {_hdr_php_path}', wp_path)
+        _os.unlink(_hdr_php_path)
+        log(f'Header "Serving" text set to {_city}, {_state}')
 
     # Footer map widget (Column 4) — city-specific Google Maps embed
     city  = config.get("primary_city", "")
