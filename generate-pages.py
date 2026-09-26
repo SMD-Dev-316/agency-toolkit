@@ -79,11 +79,39 @@ def _cache_path(config_path):
     name = os.path.basename(config_path).replace(".json", "-content-cache.json")
     return os.path.join("/var/www/agency-toolkit/cache", name)
 
+def _migrate_cache_entry(entry):
+    """Convert an old-format cache entry ({"content": {...incl. faqs...},
+    "meta": {...}}) into the new per-element schema ({"body", "faqs",
+    "meta_title", "meta_description", "focus_keyword"}). Without this,
+    every already-generated page would look like "nothing cached" under
+    the new schema and trigger a mass fresh regeneration on first run —
+    exactly the accidental-overwrite this whole system exists to prevent.
+    Already-migrated entries pass through unchanged."""
+    if "body" in entry or "faqs" in entry:
+        return entry  # already new format
+    if "content" not in entry:
+        return entry  # unrecognized shape, leave as-is rather than guess
+    content = dict(entry["content"])
+    faqs = {"faq_h2": content.pop("faq_h2", ""), "faqs": content.pop("faqs", [])} if "faqs" in content else None
+    meta = entry.get("meta", {})
+    migrated = {"body": content}
+    if faqs is not None:
+        migrated["faqs"] = faqs
+    if "seo_title" in meta:
+        migrated["meta_title"] = meta["seo_title"]
+    if "meta_description" in meta:
+        migrated["meta_description"] = meta["meta_description"]
+    if "focus_keyword" in meta:
+        migrated["focus_keyword"] = meta["focus_keyword"]
+    return migrated
+
+
 def _load_cache(config_path):
     path = _cache_path(config_path)
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            raw = json.load(f)
+        return {title: _migrate_cache_entry(entry) for title, entry in raw.items()}
     return {}
 
 def _save_cache(cache, config_path):
@@ -91,6 +119,26 @@ def _save_cache(cache, config_path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(cache, f, indent=2)
+
+
+def _save_pre_override_snapshot(config_path, title, element, old_value):
+    """Save a timestamped snapshot of an element's OLD value right before an
+    unlock flag overwrites it — a fast local undo button for "the override
+    was used and produced something worse". Not a durable/offsite backup
+    (see the Docs-per-site roadmap item for that); this only protects
+    against a single bad override on this server. No-op if there was
+    nothing cached yet to protect (first-time generation, not an override)."""
+    if old_value is None:
+        return
+    backup_dir = os.path.join("/var/www/agency-toolkit/cache", "content-backups")
+    os.makedirs(backup_dir, exist_ok=True)
+    site_name  = os.path.basename(config_path).replace(".json", "")
+    safe_title = re.sub(r'[^a-zA-Z0-9_-]+', '-', title).strip('-')
+    ts         = time.strftime("%Y%m%dT%H%M%S")
+    path = os.path.join(backup_dir, f"{site_name}-{safe_title}-{element}-{ts}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(old_value, f, indent=2)
+    log(f"Pre-override snapshot saved: {path}")
 
 
 def build_faq_block(faqs):
@@ -408,7 +456,8 @@ def build_service_card(service_name, description, service_url, img_url, alt_text
 def build_individual_service_page(c, config, service="", city="", state=""):
     """
     Assemble the full block markup for an individual service/city page.
-    c = content dict from generate_individual_content()
+    c = merged body + faqs dicts (from generate_individual_body_content()
+    and generate_individual_faqs(), or their cached equivalents)
     """
     free_quote    = config.get("free_quote_url", "/free-quote/")
     phone         = config.get("phone", "000-000-0000")
@@ -585,8 +634,11 @@ Writing rules:
 """
 
 
-def generate_individual_content(service, city, state, county, nearby, niche, brand):
-    """Call Claude to generate all text for an individual service/city page."""
+def generate_individual_body_content(service, city, state, county, nearby, niche, brand):
+    """Call Claude to generate the body text (everything except FAQs) for an
+    individual service/city page. Split from FAQ generation (see
+    generate_individual_faqs) so the two can be independently locked/unlocked
+    without wastefully regenerating one to refresh the other."""
 
     nearby_list = ", ".join(nearby)
     focus_kw    = f"{service} {city} {state}"
@@ -622,7 +674,41 @@ Return a single JSON object with EXACTLY these fields. No markdown, no code bloc
   "section3_cta_title": "Short CTA heading. 5-8 words. Urgency or value angle.",
   "section3_cta_desc": "1 sentence. 15-25 words.",
   "service_area_h2": "H2 for service area. Example: '[Service] Service Area in {county}'. Max 70 chars.",
-  "service_area_paragraph": "2-3 sentences. Name the primary city, county, and at least 3 nearby towns from the list. Natural, not a list dump.",
+  "service_area_paragraph": "2-3 sentences. Name the primary city, county, and at least 3 nearby towns from the list. Natural, not a list dump."
+}}"""
+
+    msg = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1600,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    raw = msg.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r'^```[a-z]*\n?', '', raw)
+        raw = re.sub(r'\n?```$', '', raw)
+    return json.loads(raw)
+
+
+def generate_individual_faqs(service, city, state, county, niche, brand):
+    """Call Claude to generate just the FAQ section for an individual
+    service/city page — split out from the body content so FAQs can be
+    refreshed (e.g. to add a client-supplied detail) without touching, or
+    wastefully regenerating, the rest of the page."""
+
+    prompt = f"""You are writing SEO content for a local contractor lead-generation website.
+
+Context:
+- Niche: {niche}
+- Service: {service}
+- City: {city}, {state}
+- County: {county}
+- Brand: {brand}
+
+{CONTENT_RULES}
+
+Return a single JSON object with EXACTLY these fields. No markdown, no code blocks, raw JSON only.
+
+{{
   "faq_h2": "H2 for FAQ section. Example: 'Frequently Asked Questions About {service} in {city}, {state}'. Max 80 chars.",
   "faqs": [
     {{"question": "Specific local question about {service} in {city}", "answer": "Direct answer. 2-4 sentences."}},
@@ -634,7 +720,7 @@ Return a single JSON object with EXACTLY these fields. No markdown, no code bloc
 
     msg = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2000,
+        max_tokens=800,
         messages=[{"role": "user", "content": prompt}]
     )
     raw = msg.content[0].text.strip()
@@ -779,7 +865,17 @@ def set_rank_math_meta(post_id, meta, wp_path):
 # PAGE GENERATORS
 # ============================================================
 
-def generate_individual_service_page(service, city, state, config, city_data, update=False, dry_run=False, rebuild=False, cache=None, config_path=None):
+def generate_individual_service_page(service, city, state, config, city_data, update=False, dry_run=False,
+                                      unlock_body=False, unlock_faqs=False,
+                                      unlock_meta_title=False, unlock_meta_description=False,
+                                      cache=None, config_path=None):
+    """Locked-by-default: body, FAQs, meta title, and meta description are
+    each independently protected. A page's already-cached value for an
+    element is reused untouched unless that element's unlock flag is passed
+    — there is no fresh API call, and nothing changes, unless explicitly
+    unlocked. First-time generation (nothing cached yet) always generates,
+    regardless of unlock flags — the lock protects existing content, it
+    doesn't block creating a page that doesn't exist yet."""
     wp_path = config["wp_path"]
     niche   = config["niche"]
     brand   = config["brand_name"]
@@ -801,15 +897,59 @@ def generate_individual_service_page(service, city, state, config, city_data, up
 
     log(f"{'Updating' if existing_id else 'Creating'}: {title}")
 
-    if rebuild and cache is not None and title in cache:
-        content_data = cache[title]["content"]
-        meta         = cache[title]["meta"]
+    cached = (cache.get(title) if cache is not None else None) or {}
+
+    # Body
+    if unlock_body or "body" not in cached:
+        if "body" in cached:
+            _save_pre_override_snapshot(config_path, title, "body", cached["body"])
+        body = generate_individual_body_content(service, city, state, county, nearby, niche, brand)
     else:
-        content_data = generate_individual_content(service, city, state, county, nearby, niche, brand)
-        meta         = generate_seo_meta(focus_kw, city, state, brand)
-        if cache is not None and config_path:
-            cache[title] = {"content": content_data, "meta": meta}
-            _save_cache(cache, config_path)
+        body = cached["body"]
+
+    # FAQs — independently locked; refreshing one never touches the other
+    if unlock_faqs or "faqs" not in cached:
+        if "faqs" in cached:
+            _save_pre_override_snapshot(config_path, title, "faqs", cached["faqs"])
+        faqs = generate_individual_faqs(service, city, state, county, niche, brand)
+    else:
+        faqs = cached["faqs"]
+
+    # Meta title / description — independently locked from each other and
+    # from body/FAQs. One API call covers both fields (cheap either way),
+    # but only the unlocked field's fresh value is actually kept.
+    need_meta_title = unlock_meta_title or "meta_title" not in cached
+    need_meta_desc  = unlock_meta_description or "meta_description" not in cached
+    if need_meta_title or need_meta_desc:
+        fresh_meta = generate_seo_meta(focus_kw, city, state, brand)
+        if need_meta_title:
+            if "meta_title" in cached:
+                _save_pre_override_snapshot(config_path, title, "meta_title", cached["meta_title"])
+            meta_title = fresh_meta["seo_title"]
+        else:
+            meta_title = cached["meta_title"]
+        if need_meta_desc:
+            if "meta_description" in cached:
+                _save_pre_override_snapshot(config_path, title, "meta_description", cached["meta_description"])
+            meta_description = fresh_meta["meta_description"]
+        else:
+            meta_description = cached["meta_description"]
+        focus_keyword = fresh_meta["focus_keyword"]
+    else:
+        meta_title        = cached["meta_title"]
+        meta_description  = cached["meta_description"]
+        focus_keyword      = cached.get("focus_keyword", focus_kw)
+
+    if cache is not None and config_path:
+        cache[title] = {
+            "body": body, "faqs": faqs,
+            "meta_title": meta_title, "meta_description": meta_description,
+            "focus_keyword": focus_keyword,
+        }
+        _save_cache(cache, config_path)
+
+    content_data = {**body, **faqs}
+    meta         = {"seo_title": meta_title, "meta_description": meta_description, "focus_keyword": focus_keyword}
     page_markup  = build_individual_service_page(content_data, config, service, city, state)
 
     post_id = upsert_page(title, page_markup, wp_path, existing_id)
@@ -819,7 +959,11 @@ def generate_individual_service_page(service, city, state, config, city_data, up
     return {"title": title, "post_id": post_id, "action": "updated" if existing_id else "created", **meta}
 
 
-def generate_city_overview_page(city, state, config, city_data, update=False, dry_run=False, rebuild=False, cache=None, config_path=None):
+def generate_city_overview_page(city, state, config, city_data, update=False, dry_run=False,
+                                 unlock_body=False, unlock_meta_title=False, unlock_meta_description=False,
+                                 cache=None, config_path=None):
+    """Locked-by-default, same principle as generate_individual_service_page
+    (no FAQs on overview pages, so no separate FAQ lock needed here)."""
     wp_path  = config["wp_path"]
     niche    = config["niche"]
     brand    = config["brand_name"]
@@ -841,18 +985,49 @@ def generate_city_overview_page(city, state, config, city_data, update=False, dr
 
     log(f"{'Updating' if existing_id else 'Creating'} (overview): {title}")
 
-    if rebuild and cache is not None and title in cache:
-        content_data = cache[title]["content"]
-        meta         = cache[title]["meta"]
+    cached = (cache.get(title) if cache is not None else None) or {}
+
+    if unlock_body or "body" not in cached:
+        if "body" in cached:
+            _save_pre_override_snapshot(config_path, title, "body", cached["body"])
+        body = generate_city_overview_content(city, state, services, niche, brand)
+        body["_city"]  = city
+        body["_state"] = state
     else:
-        content_data = generate_city_overview_content(city, state, services, niche, brand)
-        content_data["_city"]  = city
-        content_data["_state"] = state
-        meta         = generate_seo_meta(focus_kw, city, state, brand)
-        if cache is not None and config_path:
-            cache[title] = {"content": content_data, "meta": meta}
-            _save_cache(cache, config_path)
-    page_markup  = build_city_overview_page(content_data, services, config)
+        body = cached["body"]
+
+    need_meta_title = unlock_meta_title or "meta_title" not in cached
+    need_meta_desc  = unlock_meta_description or "meta_description" not in cached
+    if need_meta_title or need_meta_desc:
+        fresh_meta = generate_seo_meta(focus_kw, city, state, brand)
+        if need_meta_title:
+            if "meta_title" in cached:
+                _save_pre_override_snapshot(config_path, title, "meta_title", cached["meta_title"])
+            meta_title = fresh_meta["seo_title"]
+        else:
+            meta_title = cached["meta_title"]
+        if need_meta_desc:
+            if "meta_description" in cached:
+                _save_pre_override_snapshot(config_path, title, "meta_description", cached["meta_description"])
+            meta_description = fresh_meta["meta_description"]
+        else:
+            meta_description = cached["meta_description"]
+        focus_keyword = fresh_meta["focus_keyword"]
+    else:
+        meta_title        = cached["meta_title"]
+        meta_description  = cached["meta_description"]
+        focus_keyword      = cached.get("focus_keyword", focus_kw)
+
+    if cache is not None and config_path:
+        cache[title] = {
+            "body": body,
+            "meta_title": meta_title, "meta_description": meta_description,
+            "focus_keyword": focus_keyword,
+        }
+        _save_cache(cache, config_path)
+
+    meta         = {"seo_title": meta_title, "meta_description": meta_description, "focus_keyword": focus_keyword}
+    page_markup  = build_city_overview_page(body, services, config)
 
     post_id = upsert_page(title, page_markup, wp_path, existing_id)
     set_rank_math_meta(post_id, meta, wp_path)
@@ -2101,9 +2276,30 @@ def main():
     parser.add_argument("--only-service-pages",action="store_true", help="Generate individual service pages only")
     parser.add_argument("--city",              help="Limit to a single city name (exact match)")
     parser.add_argument("--service",           help="Limit to a single service name (exact match)")
-    parser.add_argument("--rebuild",           action="store_true", help="Rebuild page HTML from cache (no API calls)")
+    parser.add_argument("--rebuild",           action="store_true", help="Re-render page HTML from cache/DB, no API calls (this is now the default for --update too — kept for backward compatibility, no longer has a distinct effect)")
     parser.add_argument("--static-pages",      action="store_true", help="Generate/update About, FAQ, and Contact pages + nav menus")
+    parser.add_argument("--unlock-body",             action="store_true", help="Allow fresh AI regeneration of body copy on already-existing pages")
+    parser.add_argument("--unlock-faqs",             action="store_true", help="Allow fresh AI regeneration of FAQs on already-existing pages")
+    parser.add_argument("--unlock-meta-title",       action="store_true", help="Allow fresh AI regeneration of the SEO title on already-existing pages")
+    parser.add_argument("--unlock-meta-description", action="store_true", help="Allow fresh AI regeneration of the meta description on already-existing pages")
+    parser.add_argument("--unlock-all",              action="store_true", help="Shorthand for all four --unlock-* flags at once")
     args = parser.parse_args()
+
+    # Content is locked by default (see project_content_protection_system):
+    # --update alone never regenerates AI content anymore — only an explicit
+    # --unlock-* flag does, and only for that specific element. This is the
+    # fix for the original bug: --update without --rebuild used to silently
+    # regenerate fresh (and different) wording on every already-ranking page.
+    unlock_body             = args.unlock_all or args.unlock_body
+    unlock_faqs             = args.unlock_all or args.unlock_faqs
+    unlock_meta_title       = args.unlock_all or args.unlock_meta_title
+    unlock_meta_description = args.unlock_all or args.unlock_meta_description
+    if unlock_body or unlock_faqs or unlock_meta_title or unlock_meta_description:
+        unlocked = [n for n, v in (
+            ("body", unlock_body), ("faqs", unlock_faqs),
+            ("meta title", unlock_meta_title), ("meta description", unlock_meta_description),
+        ) if v]
+        warn(f"UNLOCKED for this run: {', '.join(unlocked)} — a pre-override snapshot of the old value(s) will be saved before each is overwritten")
 
     with open(args.config) as f:
         config = json.load(f)
@@ -2138,12 +2334,8 @@ def main():
 
     if args.dry_run:
         warn("DRY RUN ‚Äî no WP writes, no API calls")
-    if args.update:
-        warn("UPDATE MODE ‚Äî existing pages will be regenerated")
-    if args.rebuild:
-        n = len(cache) if cache else 0
-        msg = f"REBUILD MODE — {n} pages in cache, no API calls" if n else "REBUILD MODE — cache empty, will call API"
-        warn(msg)
+    if args.update or args.rebuild:
+        warn("UPDATE MODE — existing pages will be re-pushed from cache; no AI content changes without an --unlock-* flag")
 
     results = []
     errors  = []
@@ -2156,7 +2348,9 @@ def main():
                 r = generate_city_overview_page(
                     city_data["city"], city_data["state"],
                     config, city_data, update=args.update or args.rebuild, dry_run=args.dry_run,
-                    rebuild=args.rebuild, cache=cache, config_path=args.config
+                    unlock_body=unlock_body,
+                    unlock_meta_title=unlock_meta_title, unlock_meta_description=unlock_meta_description,
+                    cache=cache, config_path=args.config
                 )
                 results.append(r)
             except Exception as e:
@@ -2172,7 +2366,9 @@ def main():
                     r = generate_individual_service_page(
                         service, city_data["city"], city_data["state"],
                         config, city_data, update=args.update or args.rebuild, dry_run=args.dry_run,
-                        rebuild=args.rebuild, cache=cache, config_path=args.config
+                        unlock_body=unlock_body, unlock_faqs=unlock_faqs,
+                        unlock_meta_title=unlock_meta_title, unlock_meta_description=unlock_meta_description,
+                        cache=cache, config_path=args.config
                     )
                     results.append(r)
                 except Exception as e:
