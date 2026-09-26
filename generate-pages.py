@@ -865,7 +865,7 @@ def generate_city_overview_page(city, state, config, city_data, update=False, dr
 # STATIC PAGE BUILDERS
 # ============================================================
 
-def _build_two_col_outer(left_col, right_col):
+def _build_two_col_outer(left_col, right_col, bg_color="var(\\u002d\\u002dast-global-color-5)"):
     """Full-width two-column content area (matches individual service page layout)."""
     outer_id = gen_id()
     return (
@@ -874,7 +874,7 @@ def _build_two_col_outer(left_col, right_col):
         f'"alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
         f'"justifyContentDesktop":"flex-start",'
         f'"backgroundType":"color",'
-        f'"backgroundColor":"var(\\u002d\\u002dast-global-color-5)",'
+        f'"backgroundColor":"{bg_color}",'
         f'"topPaddingDesktop":112,"bottomPaddingDesktop":112,'
         f'"leftPaddingDesktop":40,"rightPaddingDesktop":40,'
         f'"topPaddingTablet":80,"bottomPaddingTablet":80,'
@@ -892,12 +892,14 @@ def _build_two_col_outer(left_col, right_col):
     )
 
 
-def _build_left_col(content, width=65):
+def _build_left_col(content, width=65, bg_color=None):
     col_id = gen_id()
+    bg_attrs = f'"backgroundType":"color","backgroundColor":"{bg_color}",' if bg_color else ""
     return (
         f'<!-- wp:uagb/container {{"block_id":"{col_id}","widthDesktop":{width},'
         f'"widthTablet":100,"alignItemsTablet":"center","alignItemsMobile":"center",'
         f'"justifyContentDesktop":"flex-start",'
+        f'{bg_attrs}'
         f'"topPaddingDesktop":0,"bottomPaddingDesktop":0,'
         f'"leftPaddingDesktop":0,"rightPaddingDesktop":0,'
         f'"topPaddingTablet":0,"bottomPaddingTablet":0,'
@@ -1004,14 +1006,17 @@ def build_contact_page(config):
         f'<!-- wp:uagb/advanced-heading {{"block_id":"{form_head_id}","classMigrate":true,'
         f'"headingDescToggle":false}} -->\n'
         f'<div class="wp-block-uagb-advanced-heading uagb-block-{form_head_id}">'
-        f'<h2 class="uagb-heading-text">Request a Free Quote</h2></div>\n'
+        f'<h2 class="uagb-heading-text">How can we help?</h2></div>\n'
         f'<!-- /wp:uagb/advanced-heading -->\n'
         f'<!-- wp:fluentfom/guten-block {{"formId":"{form_id}"}} /-->'
     )
 
+    # Section background sits under the banner (#F2F5F7); the form's own
+    # column is a white card standing out on top of it (#FFFFFF). Page body
+    # background is left at the theme default (already white).
     left_col  = _build_left_col(left_content, width=45)
-    right_col = _build_left_col(right_content, width=50)
-    return banner + "\n\n" + _build_two_col_outer(left_col, right_col)
+    right_col = _build_left_col(right_content, width=50, bg_color="#FFFFFF")
+    return banner + "\n\n" + _build_two_col_outer(left_col, right_col, bg_color="#F2F5F7")
 
 
 # ============================================================
