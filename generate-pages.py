@@ -1902,8 +1902,16 @@ def build_homepage(cfg, wp_path):
     _os.unlink(_spectra_php_path)
 
 
-def generate_static_pages(config):
-    """Create or update About, FAQ, and Contact pages; add footer map widget."""
+def generate_static_pages(config, unlock_contact_page=False, unlock_header_banner=False, config_path=None):
+    """Create or update About, FAQ, and Contact pages; add footer map widget.
+
+    Contact page and the header banner (below) are locked-by-default, same
+    principle as the AI-content locks: once created/set, a plain run never
+    touches them again. Only an explicit --unlock-* flag regenerates them,
+    and the old value is snapshotted first. About/FAQ/Service Areas/Services
+    and the Homepage are NOT locked — they're deterministic template output
+    with nothing manually customized to protect, per the documented scope
+    in project_content_protection_system.md."""
     wp_path = config["wp_path"]
     # Homepage handles its own WP push via eval-file (returns None — not safe for upsert_page)
     build_homepage(config, wp_path)
@@ -1911,7 +1919,6 @@ def generate_static_pages(config):
     pages = [
         ("About",         build_about_page(config)),
         ("FAQ",           build_faq_page(config)),
-        ("Contact",       build_contact_page(config)),
         ("Service Areas", build_service_areas_page(config)),
         ("Services",      build_services_page(config)),
     ]
@@ -1920,6 +1927,18 @@ def generate_static_pages(config):
         post_id = upsert_page(title, markup, wp_path, existing_id)
         action = "Updated" if existing_id else "Created"
         log(f"{action} {title} page (ID: {post_id})")
+
+    # Contact page — locked after first creation (see docstring above)
+    contact_existing_id = get_existing_page_id("Contact", wp_path)
+    if contact_existing_id and not unlock_contact_page:
+        log(f"Contact page already exists (ID {contact_existing_id}) — locked, left untouched (use --unlock-contact-page to override)")
+    else:
+        if contact_existing_id:
+            old_content = wp(f"post get {contact_existing_id} --field=post_content", wp_path)
+            _save_pre_override_snapshot(config_path or wp_path, "Contact", "contact_page", old_content)
+        contact_markup = build_contact_page(config)
+        contact_post_id = upsert_page("Contact", contact_markup, wp_path, contact_existing_id)
+        log(f"{'Updated' if contact_existing_id else 'Created'} Contact page (ID: {contact_post_id})")
 
     # Footer copyright + disclaimer
     _disclaimer = (
@@ -1946,27 +1965,46 @@ def generate_static_pages(config):
     # originally exported from ("Serving Raleigh, NC, and Surrounding
     # Communities"); every site must overwrite it with its own city/state at
     # provision time or it silently advertises the wrong service area.
+    #
+    # Locked-by-default after that first correction (same principle as the
+    # Contact page above): only fires while the value still equals the known
+    # bad template default. Once it's been corrected once — by this script
+    # or by hand — a plain run never touches it again; --unlock-header-banner
+    # forces it regardless, with the old value snapshotted first.
+    _KNOWN_HEADER_PLACEHOLDER = "Serving Raleigh, NC, and Surrounding Communities"
     _city  = config.get("primary_city", "")
     _state = config.get("state_abbr", config.get("primary_state", ""))
     if _city and _state:
-        _header_html = f"Serving {_city}, {_state}, and Surrounding Communities"
-        # PHP single-quoted string escaping — real US city names (O'Fallon,
-        # Coeur d'Alene, etc.) contain apostrophes that would otherwise break
-        # out of the string and corrupt the eval'd PHP.
-        _header_html_esc = _header_html.replace("\\", "\\\\").replace("'", "\\'")
-        _hdr_php = (
-            "<?php\n"
-            "$s = get_option('astra-settings', []);\n"
-            f"$s['header-html-1'] = '{_header_html_esc}';\n"
-            "update_option('astra-settings', $s);\n"
-            "echo 'ok';\n"
-        )
-        _hdr_php_path = '/tmp/set_header_html.php'
-        with open(_hdr_php_path, 'w') as _hph:
-            _hph.write(_hdr_php)
-        wp(f'eval-file {_hdr_php_path}', wp_path)
-        _os.unlink(_hdr_php_path)
-        log(f'Header "Serving" text set to {_city}, {_state}')
+        _current_settings_raw = wp("option get astra-settings --format=json", wp_path)
+        try:
+            _current_settings = json.loads(_current_settings_raw) if _current_settings_raw.strip() else {}
+        except json.JSONDecodeError:
+            _current_settings = {}
+        _current_header = _current_settings.get("header-html-1", "")
+
+        if _current_header != _KNOWN_HEADER_PLACEHOLDER and not unlock_header_banner:
+            log(f'Header "Serving" text already set ({_current_header!r}) — locked, left untouched (use --unlock-header-banner to override)')
+        else:
+            if _current_header and _current_header != _KNOWN_HEADER_PLACEHOLDER:
+                _save_pre_override_snapshot(config_path or wp_path, "header", "header_banner", _current_header)
+            _header_html = f"Serving {_city}, {_state}, and Surrounding Communities"
+            # PHP single-quoted string escaping — real US city names (O'Fallon,
+            # Coeur d'Alene, etc.) contain apostrophes that would otherwise break
+            # out of the string and corrupt the eval'd PHP.
+            _header_html_esc = _header_html.replace("\\", "\\\\").replace("'", "\\'")
+            _hdr_php = (
+                "<?php\n"
+                "$s = get_option('astra-settings', []);\n"
+                f"$s['header-html-1'] = '{_header_html_esc}';\n"
+                "update_option('astra-settings', $s);\n"
+                "echo 'ok';\n"
+            )
+            _hdr_php_path = '/tmp/set_header_html.php'
+            with open(_hdr_php_path, 'w') as _hph:
+                _hph.write(_hdr_php)
+            wp(f'eval-file {_hdr_php_path}', wp_path)
+            _os.unlink(_hdr_php_path)
+            log(f'Header "Serving" text set to {_city}, {_state}')
 
     # Footer map widget (Column 4) — city-specific Google Maps embed
     city  = config.get("primary_city", "")
@@ -2282,7 +2320,9 @@ def main():
     parser.add_argument("--unlock-faqs",             action="store_true", help="Allow fresh AI regeneration of FAQs on already-existing pages")
     parser.add_argument("--unlock-meta-title",       action="store_true", help="Allow fresh AI regeneration of the SEO title on already-existing pages")
     parser.add_argument("--unlock-meta-description", action="store_true", help="Allow fresh AI regeneration of the meta description on already-existing pages")
-    parser.add_argument("--unlock-all",              action="store_true", help="Shorthand for all four --unlock-* flags at once")
+    parser.add_argument("--unlock-contact-page",     action="store_true", help="Allow re-generating the Contact page on an already-provisioned site")
+    parser.add_argument("--unlock-header-banner",    action="store_true", help="Allow re-setting the above-header 'Serving X' text on an already-provisioned site")
+    parser.add_argument("--unlock-all",              action="store_true", help="Shorthand for all --unlock-* flags at once")
     args = parser.parse_args()
 
     # Content is locked by default (see project_content_protection_system):
@@ -2294,10 +2334,13 @@ def main():
     unlock_faqs             = args.unlock_all or args.unlock_faqs
     unlock_meta_title       = args.unlock_all or args.unlock_meta_title
     unlock_meta_description = args.unlock_all or args.unlock_meta_description
-    if unlock_body or unlock_faqs or unlock_meta_title or unlock_meta_description:
+    unlock_contact_page     = args.unlock_all or args.unlock_contact_page
+    unlock_header_banner    = args.unlock_all or args.unlock_header_banner
+    if unlock_body or unlock_faqs or unlock_meta_title or unlock_meta_description or unlock_contact_page or unlock_header_banner:
         unlocked = [n for n, v in (
             ("body", unlock_body), ("faqs", unlock_faqs),
             ("meta title", unlock_meta_title), ("meta description", unlock_meta_description),
+            ("contact page", unlock_contact_page), ("header banner", unlock_header_banner),
         ) if v]
         warn(f"UNLOCKED for this run: {', '.join(unlocked)} — a pre-override snapshot of the old value(s) will be saved before each is overwritten")
 
@@ -2392,7 +2435,8 @@ def main():
 
     if args.static_pages:
         section("Static Pages (About / FAQ / Contact)")
-        generate_static_pages(config)
+        generate_static_pages(config, unlock_contact_page=unlock_contact_page,
+                              unlock_header_banner=unlock_header_banner, config_path=args.config)
 
     if args.update or args.static_pages:
         section("Nav Menus")
