@@ -16,6 +16,8 @@ import json
 import re
 import uuid
 import time
+import random
+import shutil
 import argparse
 import subprocess
 from dotenv import load_dotenv
@@ -139,6 +141,125 @@ def _save_pre_override_snapshot(config_path, title, element, old_value):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(old_value, f, indent=2)
     log(f"Pre-override snapshot saved: {path}")
+
+
+# ============================================================
+# IMAGE POOL
+# ============================================================
+
+POOL_ROOT    = "/var/www/rar-image-pool"
+_IMAGE_EXTS  = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def _list_pool_candidates(pool_dir):
+    """Real image files in a pool folder, ignoring NAMING_CONVENTION.txt
+    and anything else that isn't an image."""
+    if not os.path.isdir(pool_dir):
+        return []
+    return sorted(f for f in os.listdir(pool_dir) if f.lower().endswith(_IMAGE_EXTS))
+
+
+def _image_selections_path(config_path):
+    name = os.path.basename(config_path).replace(".json", "-image-selections.json")
+    return os.path.join("/var/www/agency-toolkit/cache", name)
+
+
+def _load_image_selections(config_path):
+    path = _image_selections_path(config_path)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_image_selections(selections, config_path):
+    path = _image_selections_path(config_path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(selections, f, indent=2)
+
+
+def _ensure_service_images_convention(config, config_path):
+    """Guarantee config['service_images'][slug] points at the same fixed
+    filenames the pool sync (and the homepage's own hardcoded convention)
+    both use — rect-{slug}.jpg and wide-{slug}-1/2/3.jpg. This is
+    deterministic and unrelated to which pool candidate is currently
+    selected; it exists only to stop the homepage and the individual/
+    services pages from silently drifting onto different filenames for
+    the same service (see project_content_protection_system.md)."""
+    services       = config.get("services", [])
+    service_images = config.setdefault("service_images", {})
+    changed = False
+    for svc in services:
+        slug   = str(svc).lower().replace(" ", "-").replace(",", "")
+        entry  = service_images.setdefault(slug, {})
+        rect_expected = f"rect-{slug}.jpg"
+        wide_expected = [f"wide-{slug}-{n}.jpg" for n in (1, 2, 3)]
+        if entry.get("rect") != rect_expected:
+            entry["rect"] = rect_expected
+            changed = True
+        if entry.get("wide") != wide_expected:
+            entry["wide"] = wide_expected
+            changed = True
+    if changed and config_path:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+        log("service_images convention enforced in config (rect/wide filenames)")
+    return changed
+
+
+def sync_pool_images(config, wp_path, config_path, unlock_images=False):
+    """Pick and place images from the central per-niche pool for this
+    site. Locked by default per purpose (site-wide: hero, home-summary,
+    home-about, home-parallax; per-service: rect, wide-1, wide-2, wide-3)
+    — a purpose that's already been picked is left untouched unless
+    unlock_images forces a fresh pick, with the old selection snapshotted
+    first. A missing or empty pool folder is skipped with a warning
+    rather than breaking page generation — the pool is additive, not a
+    hard dependency, since it may not be populated for every niche yet."""
+    niche_slug    = config.get("primary_service_name", "Drain Cleaning").lower().replace(" ", "-")
+    pool_niche_dir = os.path.join(POOL_ROOT, niche_slug)
+    rar_dest_dir   = os.path.join(wp_path, "wp-content", "uploads", "rar")
+    os.makedirs(rar_dest_dir, exist_ok=True)
+
+    selections = _load_image_selections(config_path) if config_path else {}
+
+    def _sync_one(purpose_key, pool_dir, dest_filename):
+        if purpose_key in selections and not unlock_images:
+            return  # locked, already picked — leave it alone
+        candidates = _list_pool_candidates(pool_dir)
+        if not candidates:
+            warn(f"No pool images for {purpose_key} ({pool_dir}) — leaving existing image in place")
+            return
+        if purpose_key in selections:
+            _save_pre_override_snapshot(config_path, purpose_key, "image_selection", selections[purpose_key])
+        chosen = random.choice(candidates)
+        shutil.copyfile(os.path.join(pool_dir, chosen), os.path.join(rar_dest_dir, dest_filename))
+        selections[purpose_key] = chosen
+        log(f"Image pool: {purpose_key} -> {chosen}")
+
+    # Destination filenames are hardcoded per the exact convention build_homepage()
+    # already expects — not derived by string-concatenating the purpose name
+    # (that produced "home-home-summary-..." for "home-summary", a real bug
+    # caught in testing before this shipped).
+    site_wide_dest = {
+        "hero":          f"home-hero-{niche_slug}-01.jpg",
+        "home-summary":  f"home-summary-{niche_slug}-01.jpg",
+        "home-about":    f"home-about-{niche_slug}-01.jpg",
+        "home-parallax": f"home-parallax-{niche_slug}-01.jpg",
+    }
+    for purpose, dest_filename in site_wide_dest.items():
+        _sync_one(purpose, os.path.join(pool_niche_dir, purpose), dest_filename)
+
+    for svc in config.get("services", []):
+        slug = str(svc).lower().replace(" ", "-").replace(",", "")
+        _sync_one(f"rect:{slug}", os.path.join(pool_niche_dir, "services", slug, "rect"), f"rect-{slug}.jpg")
+        for n in (1, 2, 3):
+            _sync_one(f"wide-{n}:{slug}", os.path.join(pool_niche_dir, "services", slug, f"wide-{n}"), f"wide-{slug}-{n}.jpg")
+
+    if config_path:
+        _save_image_selections(selections, config_path)
+    _ensure_service_images_convention(config, config_path)
 
 
 def build_faq_block(faqs):
@@ -1902,7 +2023,8 @@ def build_homepage(cfg, wp_path):
     _os.unlink(_spectra_php_path)
 
 
-def generate_static_pages(config, unlock_contact_page=False, unlock_header_banner=False, config_path=None):
+def generate_static_pages(config, unlock_contact_page=False, unlock_header_banner=False,
+                           unlock_images=False, config_path=None):
     """Create or update About, FAQ, and Contact pages; add footer map widget.
 
     Contact page and the header banner (below) are locked-by-default, same
@@ -1913,6 +2035,11 @@ def generate_static_pages(config, unlock_contact_page=False, unlock_header_banne
     with nothing manually customized to protect, per the documented scope
     in project_content_protection_system.md."""
     wp_path = config["wp_path"]
+
+    # Pool images must be placed before the homepage is built — it reads
+    # the fixed filenames these picks are copied to.
+    sync_pool_images(config, wp_path, config_path, unlock_images=unlock_images)
+
     # Homepage handles its own WP push via eval-file (returns None — not safe for upsert_page)
     build_homepage(config, wp_path)
 
@@ -2322,6 +2449,7 @@ def main():
     parser.add_argument("--unlock-meta-description", action="store_true", help="Allow fresh AI regeneration of the meta description on already-existing pages")
     parser.add_argument("--unlock-contact-page",     action="store_true", help="Allow re-generating the Contact page on an already-provisioned site")
     parser.add_argument("--unlock-header-banner",    action="store_true", help="Allow re-setting the above-header 'Serving X' text on an already-provisioned site")
+    parser.add_argument("--unlock-images",           action="store_true", help="Allow re-rolling image pool picks that were already selected for this site")
     parser.add_argument("--unlock-all",              action="store_true", help="Shorthand for all --unlock-* flags at once")
     args = parser.parse_args()
 
@@ -2336,11 +2464,13 @@ def main():
     unlock_meta_description = args.unlock_all or args.unlock_meta_description
     unlock_contact_page     = args.unlock_all or args.unlock_contact_page
     unlock_header_banner    = args.unlock_all or args.unlock_header_banner
-    if unlock_body or unlock_faqs or unlock_meta_title or unlock_meta_description or unlock_contact_page or unlock_header_banner:
+    unlock_images           = args.unlock_all or args.unlock_images
+    if unlock_body or unlock_faqs or unlock_meta_title or unlock_meta_description or unlock_contact_page or unlock_header_banner or unlock_images:
         unlocked = [n for n, v in (
             ("body", unlock_body), ("faqs", unlock_faqs),
             ("meta title", unlock_meta_title), ("meta description", unlock_meta_description),
             ("contact page", unlock_contact_page), ("header banner", unlock_header_banner),
+            ("images", unlock_images),
         ) if v]
         warn(f"UNLOCKED for this run: {', '.join(unlocked)} — a pre-override snapshot of the old value(s) will be saved before each is overwritten")
 
@@ -2436,7 +2566,8 @@ def main():
     if args.static_pages:
         section("Static Pages (About / FAQ / Contact)")
         generate_static_pages(config, unlock_contact_page=unlock_contact_page,
-                              unlock_header_banner=unlock_header_banner, config_path=args.config)
+                              unlock_header_banner=unlock_header_banner,
+                              unlock_images=unlock_images, config_path=args.config)
 
     if args.update or args.static_pages:
         section("Nav Menus")
