@@ -1772,13 +1772,19 @@ def build_about_page(config):
         banner_cta_ref, use_kadence=config.get("use_kadence", False)
     )
 
-    head_id = gen_id()
+    if config.get("use_kadence", False):
+        heading_html = kadence_heading(f"About {brand}", level=2)
+    else:
+        head_id = gen_id()
+        heading_html = (
+            f'<!-- wp:uagb/advanced-heading {{"block_id":"{head_id}","classMigrate":true,'
+            f'"headingDescToggle":false}} -->\n'
+            f'<div class="wp-block-uagb-advanced-heading uagb-block-{head_id}">'
+            f'<h2 class="uagb-heading-text">About {brand}</h2></div>\n'
+            f'<!-- /wp:uagb/advanced-heading -->'
+        )
     left_content = (
-        f'<!-- wp:uagb/advanced-heading {{"block_id":"{head_id}","classMigrate":true,'
-        f'"headingDescToggle":false}} -->\n'
-        f'<div class="wp-block-uagb-advanced-heading uagb-block-{head_id}">'
-        f'<h2 class="uagb-heading-text">About {brand}</h2></div>\n'
-        f'<!-- /wp:uagb/advanced-heading -->\n'
+        f'{heading_html}\n'
         f'<!-- wp:paragraph -->\n'
         f'<p>We are a locally owned and operated {niche} company serving homeowners and businesses in the area. '
         f'Our team is committed to fast, reliable service at fair prices. '
@@ -1813,14 +1819,20 @@ def build_faq_page(config):
     )
 
     faq_block = build_faq_block(faqs)
-    head_id   = gen_id()
     sep_id    = gen_id()
+    if config.get("use_kadence", False):
+        heading_html = kadence_heading("Your Questions Answered", level=2)
+    else:
+        head_id = gen_id()
+        heading_html = (
+            f'<!-- wp:uagb/advanced-heading {{"block_id":"{head_id}","classMigrate":true,'
+            f'"headingDescToggle":false}} -->\n'
+            f'<div class="wp-block-uagb-advanced-heading uagb-block-{head_id}">'
+            f'<h2 class="uagb-heading-text">Your Questions Answered</h2></div>\n'
+            f'<!-- /wp:uagb/advanced-heading -->'
+        )
     left_content = (
-        f'<!-- wp:uagb/advanced-heading {{"block_id":"{head_id}","classMigrate":true,'
-        f'"headingDescToggle":false}} -->\n'
-        f'<div class="wp-block-uagb-advanced-heading uagb-block-{head_id}">'
-        f'<h2 class="uagb-heading-text">Your Questions Answered</h2></div>\n'
-        f'<!-- /wp:uagb/advanced-heading -->\n'
+        f'{heading_html}\n'
         f'{faq_block}\n'
         f'{build_uagb_separator(sep_id)}'
     )
@@ -1844,13 +1856,19 @@ def build_contact_page(config):
 
     left_content  = f'<!-- wp:block {{"ref":{contact_ref}}} /-->'
 
-    form_head_id  = gen_id()
+    if config.get("use_kadence", False):
+        form_heading_html = kadence_heading("How can we help?", level=2)
+    else:
+        form_head_id = gen_id()
+        form_heading_html = (
+            f'<!-- wp:uagb/advanced-heading {{"block_id":"{form_head_id}","classMigrate":true,'
+            f'"headingDescToggle":false}} -->\n'
+            f'<div class="wp-block-uagb-advanced-heading uagb-block-{form_head_id}">'
+            f'<h2 class="uagb-heading-text">How can we help?</h2></div>\n'
+            f'<!-- /wp:uagb/advanced-heading -->'
+        )
     right_content = (
-        f'<!-- wp:uagb/advanced-heading {{"block_id":"{form_head_id}","classMigrate":true,'
-        f'"headingDescToggle":false}} -->\n'
-        f'<div class="wp-block-uagb-advanced-heading uagb-block-{form_head_id}">'
-        f'<h2 class="uagb-heading-text">How can we help?</h2></div>\n'
-        f'<!-- /wp:uagb/advanced-heading -->\n'
+        f'{form_heading_html}\n'
         f'<!-- wp:fluentfom/guten-block {{"formId":"{form_id}"}} /-->'
     )
 
