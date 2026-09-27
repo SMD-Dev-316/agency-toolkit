@@ -1116,49 +1116,10 @@ def build_individual_service_page(c, config, service="", city="", state=""):
         c["faq_h2"], faq_block, use_kadence=use_kadence
     )
 
-    left_col_id = gen_id()
-    left_col = (
-        f'<!-- wp:uagb/container {{"block_id":"{left_col_id}","widthDesktop":65,'
-        f'"widthTablet":100,"alignItemsTablet":"center","alignItemsMobile":"center",'
-        f'"justifyContentDesktop":"flex-start",'
-        f'"topPaddingDesktop":0,"bottomPaddingDesktop":0,'
-        f'"leftPaddingDesktop":0,"rightPaddingDesktop":0,'
-        f'"topPaddingTablet":0,"bottomPaddingTablet":0,'
-        f'"leftPaddingTablet":0,"rightPaddingTablet":0,'
-        f'"topPaddingMobile":0,"bottomPaddingMobile":0,'
-        f'"leftPaddingMobile":0,"rightPaddingMobile":0,'
-        f'"paddingLink":false,"variationSelected":true,'
-        f'"rowGapDesktop":24,"rowGapTablet":24,"rowGapMobile":24,'
-        f'"columnGapDesktop":0,"widthSetByUser":true}} -->\n'
-        f'<div class="wp-block-uagb-container uagb-block-{left_col_id}">\n'
-        f'{s1}\n{s2}\n{s3}\n{s4}\n'
-        f'</div>\n<!-- /wp:uagb/container -->'
-    )
-
-    sidebar  = build_sidebar(sidebar_ref, use_kadence=use_kadence)
-    outer_id = gen_id()
-    content_area = (
-        f'<!-- wp:uagb/container {{"block_id":"{outer_id}","directionDesktop":"row",'
-        f'"directionTablet":"column","alignItemsDesktop":"stretch",'
-        f'"alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
-        f'"justifyContentDesktop":"flex-start",'
-        f'"backgroundType":"color",'
-        f'"backgroundColor":"var(\\u002d\\u002dast-global-color-5)",'
-        f'"topPaddingDesktop":112,"bottomPaddingDesktop":112,'
-        f'"leftPaddingDesktop":40,"rightPaddingDesktop":40,'
-        f'"topPaddingTablet":80,"bottomPaddingTablet":80,'
-        f'"leftPaddingTablet":32,"rightPaddingTablet":32,'
-        f'"topPaddingMobile":64,"bottomPaddingMobile":64,'
-        f'"leftPaddingMobile":24,"rightPaddingMobile":24,'
-        f'"paddingLink":false,"variationSelected":true,'
-        f'"rowGapDesktop":0,"rowGapTablet":0,"rowGapMobile":40,'
-        f'"columnGapDesktop":72,"columnGapTablet":40,"columnGapMobile":0,'
-        f'"isBlockRootParent":true,"equalHeight":true}} -->\n'
-        f'<div class="wp-block-uagb-container uagb-block-{outer_id} alignfull uagb-is-root-container">'
-        f'<div class="uagb-container-inner-blocks-wrap">\n'
-        f'{left_col}\n{sidebar}\n'
-        f'</div></div>\n<!-- /wp:uagb/container -->'
-    )
+    left_content = f'{s1}\n{s2}\n{s3}\n{s4}'
+    left_col     = _build_left_col(left_content, width=65, use_kadence=use_kadence)
+    sidebar      = build_sidebar(sidebar_ref, use_kadence=use_kadence)
+    content_area = _build_two_col_outer(left_col, sidebar, use_kadence=use_kadence)
 
     return banner + "\n\n" + content_area
 
@@ -1191,44 +1152,11 @@ def build_city_overview_page(c, services, config):
         cards.append(build_service_card(svc, desc, svc_url, img_url, alt_text,
                                          use_kadence=config.get("use_kadence", False)))
 
-    grid_inner_id = gen_id()
-    grid_outer_id = gen_id()
-
+    use_kadence  = config.get("use_kadence", False)
     cards_markup = "\n".join(cards)
-    grid = (
-        f'<!-- wp:uagb/container {{"block_id":"{grid_outer_id}","directionDesktop":"row",'
-        f'"directionTablet":"column","alignItemsDesktop":"stretch",'
-        f'"alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
-        f'"justifyContentDesktop":"flex-start",'
-        f'"backgroundType":"color",'
-        f'"backgroundColor":"var(\\u002d\\u002dast-global-color-5)",'
-        f'"topPaddingDesktop":112,"bottomPaddingDesktop":112,'
-        f'"leftPaddingDesktop":40,"rightPaddingDesktop":40,'
-        f'"topPaddingTablet":80,"bottomPaddingTablet":80,'
-        f'"leftPaddingTablet":32,"rightPaddingTablet":32,'
-        f'"topPaddingMobile":64,"bottomPaddingMobile":64,'
-        f'"leftPaddingMobile":24,"rightPaddingMobile":24,'
-        f'"paddingLink":false,"variationSelected":true,'
-        f'"rowGapDesktop":0,"rowGapTablet":80,"rowGapMobile":40,'
-        f'"columnGapDesktop":72,"columnGapTablet":40,"columnGapMobile":0,'
-        f'"isBlockRootParent":true,'
-        f'"linkHoverColor":"var(\\u002d\\u002dast-global-color-7)","equalHeight":true}} -->\n'
-        f'<div class="wp-block-uagb-container uagb-block-{grid_outer_id} alignfull uagb-is-root-container">'
-        f'<div class="uagb-container-inner-blocks-wrap">\n'
-        f'<!-- wp:uagb/container {{"block_id":"{grid_inner_id}","widthTablet":100,"directionDesktop":"row",'
-        f'"alignItemsDesktop":"flex-start","alignItemsTablet":"stretch","alignItemsMobile":"stretch",'
-        f'"justifyContentDesktop":"flex-start","variationSelected":true,'
-        f'"rowGapDesktop":40,"rowGapMobile":30,'
-        f'"columnGapDesktop":24,"columnGapTablet":20,'
-        f'"widthSetByUser":true,"childrenWidthDesktop":"equal",'
-        f'"layout":"grid",'
-        f'"gridColumnDesktop":[{{"default":"custom","min":{{"unit":"px","value":10}},"max":{{"unit":"fr","value":1}},"custom":{{"unit":"fr","value":1}}}},{{"default":"custom","min":{{"unit":"px","value":10}},"max":{{"unit":"fr","value":1}},"custom":{{"unit":"fr","value":1}}}}]}} -->\n'
-        f'<div class="wp-block-uagb-container uagb-layout-grid uagb-block-{grid_inner_id}">\n'
-        f'{cards_markup}\n'
-        f'</div>\n<!-- /wp:uagb/container -->\n'
-        f'{build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))}\n'
-        f'</div></div>\n<!-- /wp:uagb/container -->'
-    )
+    card_grid    = _build_card_grid(cards_markup, use_kadence=use_kadence)
+    sidebar      = build_sidebar(sidebar_ref, use_kadence=use_kadence)
+    grid         = _build_landing_outer(card_grid, sidebar, use_kadence=use_kadence)
 
     return banner + "\n\n" + grid
 
@@ -1903,9 +1831,9 @@ def build_faq_page(config):
     )
 
     faq_block = build_faq_block(faqs)
-    sep_id    = gen_id()
     if config.get("use_kadence", False):
-        heading_html = kadence_heading("Your Questions Answered", level=2)
+        heading_html   = kadence_heading("Your Questions Answered", level=2)
+        separator_html = kadence_separator()
     else:
         head_id = gen_id()
         heading_html = (
@@ -1915,10 +1843,12 @@ def build_faq_page(config):
             f'<h2 class="uagb-heading-text">Your Questions Answered</h2></div>\n'
             f'<!-- /wp:uagb/advanced-heading -->'
         )
+        sep_id = gen_id()
+        separator_html = build_uagb_separator(sep_id)
     left_content = (
         f'{heading_html}\n'
         f'{faq_block}\n'
-        f'{build_uagb_separator(sep_id)}'
+        f'{separator_html}'
     )
 
     left_col = _build_left_col(left_content, width=65, use_kadence=config.get("use_kadence", False))
