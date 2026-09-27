@@ -1963,8 +1963,11 @@ def _build_landing_card(icon, heading, desc, link, icon_color=None, use_kadence=
     return _build_landing_card_uagb(icon, heading, desc, link, icon_color=icon_color)
 
 
-def _build_card_grid(cards_markup):
-    """2-column card grid container (auto width on desktop, 100% on tablet)."""
+def _build_card_grid_uagb(cards_markup):
+    """2-column card grid container (auto width on desktop, 100% on tablet) -
+    original Spectra/uagb version, kept during the Kadence migration for
+    comparison/rollback. See _build_card_grid_kadence for the converted
+    version; _build_card_grid below picks between them."""
     col_id = gen_id()
     return (
         f'<!-- wp:uagb/container {{"block_id":"{col_id}","widthTablet":100,'
@@ -1985,6 +1988,54 @@ def _build_card_grid(cards_markup):
         f'{cards_markup}\n'
         f'</div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def _build_card_grid_kadence(cards_markup):
+    """2-column card grid container - Kadence version.
+
+    Kadence has no native block for "wrap N pre-built child blocks into an
+    auto-flowing multi-column grid" - kadence/rowlayout is a fixed N-slot
+    layout (exactly N named column children), not an auto-flow container for
+    an arbitrary/variable child count (same gap already flagged in
+    kadence_row's docstring). Uses a plain CSS Grid wrapper div instead - no
+    block comment at all, the same tier as the plain <img> tags and the
+    sticky-positioned div already used elsewhere in this migration for
+    things Kadence has no block equivalent for.
+
+    Deliberately uses `repeat(auto-fit, minmax(280px,1fr))` rather than
+    trying to reproduce the original's exact breakpoint behavior. The
+    original's collapse-to-1-column IS real and meaningful, not vestigial -
+    confirmed live by reading the already-built rar01.web-samples.com
+    Service Areas page's compiled CSS: fixed 2 columns on desktop, but a
+    `@media (max-width:976px)` rule collapses to a single
+    `minmax(1px,1fr)` track, and again at `@media (max-width:767px)`.
+    Reproducing that exactly would need either a real Kadence layout block
+    (which doesn't fit this auto-flowing-N-items shape) or hand-written
+    `<style>` media-query blocks in post content (an unverified, likely-
+    fragile new technique - WordPress's content sanitization may strip a
+    raw `<style>` tag depending on how content is saved, not verified this
+    session). `auto-fit`/`minmax` is a well-established, framework-agnostic
+    CSS technique that reaches the same practical result (2-up desktop,
+    1-up narrow viewports) through intrinsic sizing alone, with no
+    JavaScript, block attributes, or media queries needed - a deliberate
+    simplification, not a live-verified byte-for-byte reproduction of the
+    original's exact breakpoints.
+    """
+    return (
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));'
+        'column-gap:24px;row-gap:40px;">\n'
+        f'{cards_markup}\n'
+        '</div>'
+    )
+
+
+def _build_card_grid(cards_markup, use_kadence=False):
+    """2-column card grid container. use_kadence picks between the original
+    Spectra/uagb markup and the converted Kadence markup - see the two
+    implementations above."""
+    if use_kadence:
+        return _build_card_grid_kadence(cards_markup)
+    return _build_card_grid_uagb(cards_markup)
 
 
 def _build_landing_outer(left_col, right_col):
@@ -2069,7 +2120,7 @@ def build_service_areas_page(config):
         cards.append(_build_landing_card("core/map-marker", city, desc, url, icon_color="#bdc9d1",
                                           use_kadence=config.get("use_kadence", False)))
 
-    grid    = _build_card_grid("\n".join(cards))
+    grid    = _build_card_grid("\n".join(cards), use_kadence=config.get("use_kadence", False))
     sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_landing_outer(grid, sidebar)
 
@@ -2108,7 +2159,7 @@ def build_services_page(config):
         cards.append(build_service_card(svc, desc, url, img_url, alt_text,
                                          use_kadence=config.get("use_kadence", False)))
 
-    grid    = _build_card_grid("\n".join(cards))
+    grid    = _build_card_grid("\n".join(cards), use_kadence=config.get("use_kadence", False))
     sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_landing_outer(grid, sidebar)
 
