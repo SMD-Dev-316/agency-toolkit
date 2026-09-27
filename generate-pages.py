@@ -253,6 +253,36 @@ def kadence_testimonial(quote, name=None, occupation=None, rating=None):
     )
 
 
+def kadence_separator(color="var(--ast-global-color-0)", height=60):
+    """kadence/spacer with its divider enabled ‚Äî replaces uagb/separator.
+    hAlign and dividerColor are real, verified-live attributes. The color
+    was verified live as a literal hex string; using a var(--ast-global-
+    color-N) reference here instead is a reasonable extrapolation, not
+    separately verified for this specific field ‚Äî every other color field
+    checked this session (buttons, headings, banner background/overlay,
+    testimonial rating icon) has accepted var() references fine, so the
+    risk is low for a purely decorative element, but it's not the same as
+    a live-confirmed fact the way the field's existence is.
+
+    height maps to the block's own "Height" control (default 60px) ‚Äî this
+    is a single value, not the original uagb separator's asymmetric top/
+    bottom margins (15/30), so it's an approximation, not a byte-for-byte
+    recreation of the old spacing. Not verified how the value distributes
+    around the divider line.
+    """
+    sep_id = gen_id()
+    attrs = {"uniqueID": sep_id, "hAlign": "left", "dividerColor": color}
+    if height != 60:
+        attrs["spacerHeight"] = height
+    attrs_json = json.dumps(attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f"<!-- wp:kadence/spacer {attrs_json} -->\n"
+        f'<div class="wp-block-kadence-spacer aligncenter kt-block-spacer-{sep_id}">'
+        f'<div class="kt-block-spacer kt-block-spacer-halign-left"><hr class="kt-divider"/></div></div>\n'
+        f"<!-- /wp:kadence/spacer -->"
+    )
+
+
 # ============================================================
 # BLOCK BUILDERS ‚Äî Spectra / Gutenberg markup
 # ============================================================
@@ -671,11 +701,8 @@ def build_content_section_kadence(h2, paragraph, cta_title, cta_desc, img_url, f
     advancedheading + core/paragraph + advancedbtn > singlebtn. The image
     stays a plain <img> for the same reason as build_service_card_kadence —
     kadence/image hasn't been verified live yet. The separator between
-    sections is left as the existing uagb/separator (not yet converted;
-    different block families coexist on a page without issue, already
-    confirmed this session by the uagb grid + kadence cards test)."""
-    sep_id = gen_id()
-    sep = '' if is_last else '\n' + build_uagb_separator(sep_id)
+    sections now uses kadence_separator() (kadence/spacer, verified live)."""
+    sep = '' if is_last else '\n' + kadence_separator()
 
     img_html = (
         f'<img src="{img_url}" alt="{alt_text}" width="1024" height="478" '
@@ -735,18 +762,15 @@ def build_service_area_section_uagb(area_h2, area_paragraph, faq_h2, faq_block):
 def build_service_area_section_kadence(area_h2, area_paragraph, faq_h2, faq_block):
     """Service area paragraph + FAQ heading + Rank Math FAQ block — Kadence
     version. faq_block is `rank-math/faq-block` markup, untouched by this
-    migration (not a Spectra block). The trailing separator is deliberately
-    left as the existing uagb/separator (not yet converted), same rationale
-    as build_content_section_kadence."""
-    sep_id = gen_id()
-
+    migration (not a Spectra block). The trailing separator now uses
+    kadence_separator() (kadence/spacer, verified live)."""
     section_inner = (
         kadence_heading(area_h2, level=2)
         + f'<!-- wp:paragraph -->\n<p>{area_paragraph}</p>\n<!-- /wp:paragraph -->'
         + kadence_heading(faq_h2, level=2)
         + faq_block
     )
-    return kadence_row(section_inner) + '\n' + build_uagb_separator(sep_id)
+    return kadence_row(section_inner) + '\n' + kadence_separator()
 
 
 def build_service_area_section(area_h2, area_paragraph, faq_h2, faq_block, use_kadence=False):
