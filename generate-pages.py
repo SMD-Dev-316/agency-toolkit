@@ -1686,7 +1686,10 @@ def _build_two_col_outer(left_col, right_col, bg_color="var(\\u002d\\u002dast-gl
     return _build_two_col_outer_uagb(left_col, right_col, bg_color=bg_color)
 
 
-def _build_left_col(content, width=65, bg_color=None):
+def _build_left_col_uagb(content, width=65, bg_color=None):
+    """Content wrapper column - original Spectra/uagb version, kept during
+    the Kadence migration for comparison/rollback. See _build_left_col_kadence
+    for the converted version; _build_left_col below picks between them."""
     col_id = gen_id()
     bg_attrs = f'"backgroundType":"color","backgroundColor":"{bg_color}",' if bg_color else ""
     return (
@@ -1707,6 +1710,52 @@ def _build_left_col(content, width=65, bg_color=None):
         f'{content}\n'
         f'</div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def _build_left_col_kadence(content, width=65, bg_color=None):
+    """Content wrapper column - Kadence version.
+
+    `width` is accepted but unused: it's moot once nested inside
+    _build_two_col_outer_kadence's real kadence/rowlayout, which fixes each
+    column's ratio at the ROW level via `col_layout` - the original's own
+    per-child `widthDesktop` only meant something under the old flex-based
+    parent (same "harmless but inert" situation already accepted for the
+    flex-basis/33% wrappers under _build_card_grid's CSS Grid parent).
+    Kept as a parameter anyway so call sites don't need two different
+    signatures depending on use_kadence.
+
+    Deliberately does NOT emit its own kadence/column block: this content
+    is already dropped straight into one of _build_two_col_outer_kadence's
+    two real kadence/column children, and a kadence/column nested directly
+    inside another with no intervening kadence/rowlayout is a shape that
+    was never built or verified live this session (every other use of
+    kadence/column this migration has had a rowlayout parent) - rather than
+    guess whether Gutenberg/Kadence tolerates that, this returns `content`
+    unwrapped when there's no bg_color, or wraps it in a plain inline-styled
+    div (same tier as the plain <img> tags, the sticky-sidebar div, and
+    _build_card_grid's CSS Grid div already used elsewhere for things with
+    no clean, verified block fit) when a background is needed - e.g. the
+    contact page's white card sitting on top of the outer's #F2F5F7 section.
+
+    The original's `rowGapDesktop/Tablet/Mobile:24` (vertical spacing
+    between this column's own stacked child blocks), `widthTablet:100`, and
+    `alignItemsTablet/Mobile:"center"` are not reproduced - all three are
+    either moot once nested (width/stacking are dictated by the real parent
+    column now) or minor cosmetic spacing already superseded by whatever
+    gap the actual kadence/column parent applies to its own children.
+    """
+    if not bg_color:
+        return content
+    return f'<div style="background-color:{bg_color};">{content}</div>'
+
+
+def _build_left_col(content, width=65, bg_color=None, use_kadence=False):
+    """Content wrapper column. use_kadence picks between the original
+    Spectra/uagb markup and the converted Kadence markup - see the two
+    implementations above."""
+    if use_kadence:
+        return _build_left_col_kadence(content, width=width, bg_color=bg_color)
+    return _build_left_col_uagb(content, width=width, bg_color=bg_color)
 
 
 def build_about_page(config):
@@ -1738,7 +1787,7 @@ def build_about_page(config):
         f'<!-- wp:block {{"ref":{contact_ref}}} /-->'
     )
 
-    left_col = _build_left_col(left_content, width=65)
+    left_col = _build_left_col(left_content, width=65, use_kadence=config.get("use_kadence", False))
     sidebar  = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_two_col_outer(left_col, sidebar, use_kadence=config.get("use_kadence", False))
 
@@ -1776,7 +1825,7 @@ def build_faq_page(config):
         f'{build_uagb_separator(sep_id)}'
     )
 
-    left_col = _build_left_col(left_content, width=65)
+    left_col = _build_left_col(left_content, width=65, use_kadence=config.get("use_kadence", False))
     sidebar  = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_two_col_outer(left_col, sidebar, use_kadence=config.get("use_kadence", False))
 
@@ -1808,8 +1857,8 @@ def build_contact_page(config):
     # Section background sits under the banner (#F2F5F7); the form's own
     # column is a white card standing out on top of it (#FFFFFF). Page body
     # background is left at the theme default (already white).
-    left_col  = _build_left_col(left_content, width=45)
-    right_col = _build_left_col(right_content, width=50, bg_color="#FFFFFF")
+    left_col  = _build_left_col(left_content, width=45, use_kadence=config.get("use_kadence", False))
+    right_col = _build_left_col(right_content, width=50, bg_color="#FFFFFF", use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_two_col_outer(left_col, right_col, bg_color="#F2F5F7",
                                                    use_kadence=config.get("use_kadence", False),
                                                    col_layout="equal")
