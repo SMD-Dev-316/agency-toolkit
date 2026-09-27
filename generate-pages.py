@@ -215,18 +215,28 @@ def kadence_info_box(title, desc, halign="left"):
     )
 
 
-def kadence_testimonial(quote, name=None, occupation=None, rating=None):
+def kadence_testimonial(quote, name=None, occupation=None, rating=None,
+                         image_url=None, image_id=None, image_alt=""):
     """kadence/testimonials (plural wrapper, carries the shared rating-icon
     style) > kadence/testimonial (singular, self-closing). Replaces the old
     star-rating + 2x info-box combo (always used together as one card) with
     one native block. Unlike info-box/heading, content/name/occupation/rating
-    ARE real JSON attributes here (verified live) ‚Äî each is only included
+    ARE real JSON attributes here (verified live) - each is only included
     when it differs from the block's built-in default (name/occupation
     default to placeholder text, rating defaults to 5), so pass None/omit
     for anything that should stay at the default.
 
+    image_url/image_id/image_alt (verified live 2026-09-27, for the
+    free-quote.html conversion): the reviewer photo isn't a nested object
+    the way e.g. a banner's backgroundImg is - it's a flat set of top-level
+    attributes (media:"image" + url/id/alt/width/height), confirmed by
+    pushing a real image URL to a scratch page and reading back the
+    compiled `<img class="kt-testimonial-image">` tag. width/height are
+    fixed at 48x48 to match every reviewer photo already in use across this
+    codebase's templates, not independently verified for other sizes.
+
     Known limitation (verified live, not yet worked around): the Testimonials
-    media type control only offers Image or Icon ‚Äî there is no way to fully
+    media type control only offers Image or Icon - there is no way to fully
     hide the avatar area the way kadence_info_box can hide its icon.
     """
     wrap_id = gen_id()
@@ -244,6 +254,14 @@ def kadence_testimonial(quote, name=None, occupation=None, rating=None):
         inner_attrs["occupation"] = occupation
     if rating is not None:
         inner_attrs["rating"] = rating
+    if image_url:
+        inner_attrs["media"] = "image"
+        inner_attrs["url"] = image_url
+        if image_id is not None:
+            inner_attrs["id"] = image_id
+        inner_attrs["alt"] = image_alt
+        inner_attrs["width"] = 48
+        inner_attrs["height"] = 48
     wrap_json = json.dumps(wrap_attrs, ensure_ascii=False, separators=(",", ":"))
     inner_json = json.dumps(inner_attrs, ensure_ascii=False, separators=(",", ":"))
     return (
