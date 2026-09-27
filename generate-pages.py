@@ -71,6 +71,189 @@ def shell_esc(text):
     return text.replace("'", "'\\''")
 
 # ============================================================
+# KADENCE BLOCK BUILDERS ‚Äî Spectra ‚Üí Kadence migration
+# ============================================================
+# Every shape below was verified live against a real Kadence-enabled WP
+# install (rar01.web-samples.com, 2026-09-27) by building the actual block in
+# the real editor and reading back the real saved post_content via wp-cli ‚Äî
+# not from block.json's attribute list alone, which hid real gotchas:
+#   - kadence/infobox and kadence/advancedheading content is literal HTML
+#     (the title/text lives in the saved <h*>/<p> tags), NOT a JSON attribute,
+#     despite block.json listing "title"/"contentText"/"content" as attributes.
+#   - kadence/testimonial is the opposite: content/name/occupation/rating
+#     ARE real JSON attributes (omitted from output when they equal the
+#     block's built-in default, e.g. rating defaults to 5).
+#   - kadence/rowlayout always needs an explicit nested kadence/column child
+#     ‚Äî it is not a single self-contained container the way uagb/container was.
+#   - kadence/singlebtn can be a self-closing block (just attributes, no
+#     inner HTML) ‚Äî Kadence's own JS/CSS renders the real <a> markup.
+#   - borderStyle side arrays are ordered [color, style, width], confirmed
+#     from class-kadence-blocks-css.php's own index mapping (0=color,1=style,
+#     2=width) ‚Äî NOT the more common [width, style, color] convention. The
+#     separate top-level "radius"/"borderRadius" split matters too: the plain
+#     "radius" key some blocks expose is vestigial and renders no CSS at all;
+#     the real field is "borderRadius"/"borderRadiusUnit".
+#   - kadence/testimonials (plural, the wrapper) has no way to fully hide its
+#     avatar area ‚Äî its Media Type control only offers Image/Icon, no None
+#     (unlike infobox, which does support mediaType:"none").
+#
+# See project_prescale_roadmap.md / the pre-kadence-migration plan for the
+# full verification log. Fields not yet needed by any converted call site are
+# deliberately left out rather than guessed.
+
+def kadence_row(inner_html, flex_basis_percent=None):
+    """Single-column kadence/rowlayout + kadence/column wrapping inner_html.
+
+    Kadence has no flexible N-item flex-wrap container equivalent to the old
+    uagb/container(layout:flex) ‚Äî callers that need a multi-item wrapping
+    grid still supply their own outer wrapper for now (not yet converted).
+    flex_basis_percent (optional) adds a plain flex-sizing wrapper div so
+    this still behaves as a flex child of an old uagb flex-parent container
+    during the migration, when both block families are on the same page.
+    """
+    row_id = gen_id()
+    col_id = gen_id()
+    open_tag, close_tag = "", ""
+    if flex_basis_percent:
+        open_tag = f'<div style="flex:0 0 {flex_basis_percent}%;max-width:{flex_basis_percent}%;">'
+        close_tag = "</div>"
+    return (
+        f"{open_tag}"
+        f'<!-- wp:kadence/rowlayout {{"uniqueID":"{row_id}","columns":1,"colLayout":"equal","kbVersion":2}} -->\n'
+        f'<!-- wp:kadence/column {{"borderWidth":["","","",""],"uniqueID":"{col_id}","kbVersion":2}} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{col_id}"><div class="kt-inside-inner-col">'
+        f"{inner_html}"
+        f"</div></div>\n"
+        f"<!-- /wp:kadence/column -->\n"
+        f"<!-- /wp:kadence/rowlayout -->"
+        f"{close_tag}"
+    )
+
+
+def kadence_heading(text, level=2, color=None, transform=None, letter_spacing=None):
+    """kadence/advancedheading. Content is the literal <hN> tag ‚Äî level is
+    expressed by which tag is written, not a JSON "level" attribute (verified:
+    a real h2 in the editor produced no "level" key in the saved output)."""
+    head_id = gen_id()
+    attrs = {"uniqueID": head_id}
+    if color:
+        attrs["color"] = color
+    if transform:
+        attrs["textTransform"] = transform
+    if letter_spacing is not None:
+        attrs["letterSpacing"] = letter_spacing
+    attrs_json = json.dumps(attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f"<!-- wp:kadence/advancedheading {attrs_json} -->\n"
+        f'<h{level} class="kt-adv-heading{head_id} wp-block-kadence-advancedheading" '
+        f'data-kb-block="kb-adv-heading{head_id}">{text}</h{level}>\n'
+        f"<!-- /wp:kadence/advancedheading -->"
+    )
+
+
+def kadence_button(text, link, icon=None, icon_side="right", color=None, background=None,
+                    color_hover=None, background_hover=None, border_color="#333",
+                    border_radius=None, padding=None):
+    """kadence/advancedbtn > kadence/singlebtn, self-closing (Kadence's own
+    JS/CSS renders the real <a> markup from attributes alone ‚Äî verified live).
+
+    borderStyle side arrays are [color, style, width] (verified from
+    class-kadence-blocks-css.php's get_border_value index mapping), and
+    radius is the separate "borderRadius"/"borderRadiusUnit" pair, not the
+    vestigial "radius" key (same class of mistake already caught once this
+    session for Astra's social icons)."""
+    outer_id = gen_id()
+    btn_id = gen_id()
+    attrs = {"uniqueID": btn_id, "text": text, "link": link}
+    if icon:
+        attrs["icon"] = icon
+        attrs["iconSide"] = icon_side
+    if color:
+        attrs["color"] = color
+    if background:
+        attrs["background"] = background
+    if color_hover:
+        attrs["colorHover"] = color_hover
+    if background_hover:
+        attrs["backgroundHover"] = background_hover
+    if border_color:
+        side = [border_color, "solid", "1"]
+        attrs["borderStyle"] = [{"top": side, "right": side, "bottom": side, "left": side, "unit": "px"}]
+    if border_radius is not None:
+        attrs["borderRadius"] = [str(border_radius)] * 4
+        attrs["borderRadiusUnit"] = "px"
+    if padding:
+        attrs["padding"] = [str(p) for p in padding]
+        attrs["paddingUnit"] = "px"
+    attrs_json = json.dumps(attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f'<!-- wp:kadence/advancedbtn {{"uniqueID":"{outer_id}"}} -->\n'
+        f'<div class="wp-block-kadence-advancedbtn kb-buttons-wrap kb-btns{outer_id}">'
+        f"<!-- wp:kadence/singlebtn {attrs_json} /--></div>\n"
+        f"<!-- /wp:kadence/advancedbtn -->"
+    )
+
+
+def kadence_info_box(title, desc, halign="left"):
+    """kadence/infobox with no media (mediaType:"none" ‚Äî verified live that
+    this fully omits the media container div, not just empty-styles it).
+    Title/description are literal HTML (h2/p tags), not JSON attributes,
+    despite block.json listing "title"/"contentText" as attributes ‚Äî this
+    version of Kadence sources them from the saved HTML instead."""
+    box_id = gen_id()
+    attrs = {"uniqueID": box_id, "hAlign": halign, "mediaType": "none", "kbVersion": 2}
+    attrs_json = json.dumps(attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f"<!-- wp:kadence/infobox {attrs_json} -->\n"
+        f'<div class="wp-block-kadence-infobox kt-info-box{box_id}">'
+        f'<span class="kt-blocks-info-box-link-wrap info-box-link kt-blocks-info-box-media-align-top kt-info-halign-{halign}">'
+        f'<div class="kt-infobox-textcontent">'
+        f'<h2 class="kt-blocks-info-box-title">{title}</h2>'
+        f'<p class="kt-blocks-info-box-text">{desc}</p>'
+        f"</div></span></div>\n"
+        f"<!-- /wp:kadence/infobox -->"
+    )
+
+
+def kadence_testimonial(quote, name=None, occupation=None, rating=None):
+    """kadence/testimonials (plural wrapper, carries the shared rating-icon
+    style) > kadence/testimonial (singular, self-closing). Replaces the old
+    star-rating + 2x info-box combo (always used together as one card) with
+    one native block. Unlike info-box/heading, content/name/occupation/rating
+    ARE real JSON attributes here (verified live) ‚Äî each is only included
+    when it differs from the block's built-in default (name/occupation
+    default to placeholder text, rating defaults to 5), so pass None/omit
+    for anything that should stay at the default.
+
+    Known limitation (verified live, not yet worked around): the Testimonials
+    media type control only offers Image or Icon ‚Äî there is no way to fully
+    hide the avatar area the way kadence_info_box can hide its icon.
+    """
+    wrap_id = gen_id()
+    inner_id = gen_id()
+    wrap_attrs = {
+        "uniqueID": wrap_id,
+        "ratingStyles": [{"color": "#ffd700", "size": 16, "margin": ["", "", "", ""],
+                           "iconSpacing": "", "icon": "fas_star", "stroke": 2}],
+        "kbVersion": 2,
+    }
+    inner_attrs = {"uniqueID": inner_id, "content": quote}
+    if name:
+        inner_attrs["name"] = name
+    if occupation:
+        inner_attrs["occupation"] = occupation
+    if rating is not None:
+        inner_attrs["rating"] = rating
+    wrap_json = json.dumps(wrap_attrs, ensure_ascii=False, separators=(",", ":"))
+    inner_json = json.dumps(inner_attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f"<!-- wp:kadence/testimonials {wrap_json} -->\n"
+        f"<!-- wp:kadence/testimonial {inner_json} /-->\n"
+        f"<!-- /wp:kadence/testimonials -->"
+    )
+
+
+# ============================================================
 # BLOCK BUILDERS ‚Äî Spectra / Gutenberg markup
 # ============================================================
 
@@ -470,8 +653,11 @@ def build_sidebar(sidebar_ref):
     )
 
 
-def build_service_card(service_name, description, service_url, img_url, alt_text=""):
-    """Single service card for city overview grid."""
+def build_service_card_uagb(service_name, description, service_url, img_url, alt_text=""):
+    """Single service card for city overview grid ‚Äî original Spectra/uagb
+    version, kept during the Kadence migration for comparison/rollback.
+    See build_service_card_kadence for the converted version; build_service_card
+    below picks between them."""
     card_id   = gen_id()
     img_id    = gen_id()
     ibox_id   = gen_id()
@@ -572,6 +758,46 @@ def build_service_card(service_name, description, service_url, img_url, alt_text
         f'</div></div>\n<!-- /wp:uagb/buttons -->'
         f'</div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def build_service_card_kadence(service_name, description, service_url, img_url, alt_text=""):
+    """Single service card for city overview grid ‚Äî Kadence version.
+
+    The image stays a plain <img> (not wrapped in a kadence/image block
+    comment) deliberately: kadence/image's real saved markup hasn't been
+    verified live yet the way info-box/heading/buttons/testimonial have, and
+    WordPress renders raw HTML outside any block comment fine (classic/
+    freeform content), so this avoids guessing at an unverified block shape.
+
+    The 33%-wide flex-child sizing is preserved via kadence_row's
+    flex_basis_percent, since the grid parent this drops into
+    (build_city_overview_page / build_homepage's card loop) is still the old
+    uagb/container(layout:flex) ‚Äî not yet converted in this pass.
+    """
+    img_html = (
+        f'<img src="{img_url}" alt="{alt_text}" title="{esc(service_name)}" '
+        f'width="402" height="260" loading="lazy" role="img" '
+        f'style="width:100%;height:260px;object-fit:cover;border-radius:6px;"/>'
+    )
+    info_box_html = kadence_info_box(service_name, description, halign="left")
+    button_html = kadence_button(
+        "Learn More", service_url,
+        icon="fas_chevron-right", icon_side="right",
+        color="#ffffff", background="var(--ast-global-color-5)",
+        color_hover="var(--ast-global-color-1)", background_hover="var(--ast-global-color-7)",
+        border_radius=30, padding=(7, 13, 7, 10),
+    )
+    card_inner = img_html + info_box_html + button_html
+    return kadence_row(card_inner, flex_basis_percent=33)
+
+
+def build_service_card(service_name, description, service_url, img_url, alt_text="", use_kadence=False):
+    """Single service card for city overview grid. use_kadence picks between
+    the original Spectra/uagb markup and the converted Kadence markup ‚Äî see
+    the two implementations above."""
+    if use_kadence:
+        return build_service_card_kadence(service_name, description, service_url, img_url, alt_text)
+    return build_service_card_uagb(service_name, description, service_url, img_url, alt_text)
 
 
 def build_individual_service_page(c, config, service="", city="", state=""):
@@ -690,7 +916,8 @@ def build_city_overview_page(c, services, config):
         rect_file  = service_images.get(svc_slug, {}).get("rect", "")
         img_url    = img_base + rect_file if rect_file else ""
         alt_text   = f"{svc} in {primary_city}, {primary_state}"
-        cards.append(build_service_card(svc, desc, svc_url, img_url, alt_text))
+        cards.append(build_service_card(svc, desc, svc_url, img_url, alt_text,
+                                         use_kadence=config.get("use_kadence", False)))
 
     grid_inner_id = gen_id()
     grid_outer_id = gen_id()
@@ -1575,7 +1802,8 @@ def build_services_page(config):
             f"Professional {svc.lower()} serving {primary_city}, {primary_state}"
             f" and the surrounding area."
         )
-        cards.append(build_service_card(svc, desc, url, img_url, alt_text))
+        cards.append(build_service_card(svc, desc, url, img_url, alt_text,
+                                         use_kadence=config.get("use_kadence", False)))
 
     grid    = _build_card_grid("\n".join(cards))
     sidebar = build_sidebar(sidebar_ref)
@@ -2451,6 +2679,7 @@ def main():
     parser.add_argument("--unlock-header-banner",    action="store_true", help="Allow re-setting the above-header 'Serving X' text on an already-provisioned site")
     parser.add_argument("--unlock-images",           action="store_true", help="Allow re-rolling image pool picks that were already selected for this site")
     parser.add_argument("--unlock-all",              action="store_true", help="Shorthand for all --unlock-* flags at once")
+    parser.add_argument("--use-kadence",             action="store_true", help="Emit Kadence blocks instead of Spectra/uagb blocks for converted builders (migration in progress — see pre-kadence-migration plan). Default off so both code paths can coexist while the rest of the migration is still in progress.")
     args = parser.parse_args()
 
     # Content is locked by default (see project_content_protection_system):
@@ -2476,6 +2705,9 @@ def main():
 
     with open(args.config) as f:
         config = json.load(f)
+    config["use_kadence"] = args.use_kadence
+    if args.use_kadence:
+        warn("Using Kadence blocks (--use-kadence) — only build_service_card is converted so far; everything else still emits Spectra/uagb blocks on the same page")
 
     cache = _load_cache(args.config) if not args.dry_run else None
 
