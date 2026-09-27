@@ -1576,8 +1576,11 @@ def generate_city_overview_page(city, state, config, city_data, update=False, dr
 # STATIC PAGE BUILDERS
 # ============================================================
 
-def _build_two_col_outer(left_col, right_col, bg_color="var(\\u002d\\u002dast-global-color-5)"):
-    """Full-width two-column content area (matches individual service page layout)."""
+def _build_two_col_outer_uagb(left_col, right_col, bg_color="var(\\u002d\\u002dast-global-color-5)"):
+    """Full-width two-column content area (matches individual service page
+    layout) - original Spectra/uagb version, kept during the Kadence
+    migration for comparison/rollback. See _build_two_col_outer_kadence for
+    the converted version; _build_two_col_outer below picks between them."""
     outer_id = gen_id()
     return (
         f'<!-- wp:uagb/container {{"block_id":"{outer_id}","directionDesktop":"row",'
@@ -1601,6 +1604,86 @@ def _build_two_col_outer(left_col, right_col, bg_color="var(\\u002d\\u002dast-gl
         f'{left_col}\n{right_col}\n'
         f'</div></div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def _build_two_col_outer_kadence(left_col, right_col, bg_color="var(--ast-global-color-5)",
+                                  col_layout="left-golden"):
+    """Full-width two-column content area - Kadence version.
+
+    Reuses the exact padding/gutter/valign/tablet-stacking attributes
+    already verified live for _build_landing_outer_kadence (this function's
+    original uagb padding values are numerically identical to that one's -
+    112/40 desktop, 80/32 tablet, 64/24 mobile, 72px column-gap), except
+    `rowGapTablet`/`rowGapMobile` (0/40 here vs 80/40 there) - not
+    reproduced, same already-documented gap as _build_landing_outer_kadence
+    (no working row-gap attribute was found for the stacked-column case).
+
+    Newly verified live for THIS conversion: `bgColor` accepts a plain hex
+    string (not just a var() reference) - confirmed via compiled CSS - and
+    `colLayout:"equal"` produces a true 50/50 `grid-template-columns:
+    repeat(2, minmax(0,1fr))` split.
+
+    Unlike _build_landing_outer, the original doesn't impose its own ratio -
+    each child (_build_left_col, not yet converted) sets its OWN width via
+    its own uagb container's widthDesktop percentage, which only means
+    something under the old flex-based parent. Kadence's rowlayout instead
+    fixes the ratio at the ROW level via colLayout, so the child's own width
+    attribute has no effect once nested here (same "harmless but inert"
+    situation already accepted for the flex-basis/33% wrappers under
+    _build_card_grid's CSS Grid parent). `col_layout` lets each call site
+    pick the closest preset to its actual original ratio: "left-golden"
+    (2:1, i.e. 66.7/33.3) for the ~65/35 about/FAQ layout, "equal" (50/50)
+    for the near-equal 45/50 contact-page layout - approximations, not
+    byte-for-byte matches, same tier as _build_landing_outer_kadence's
+    left-golden choice.
+
+    bg_color's default is normalized (stripped of the old `\\u002d` JSON-
+    escape trick the uagb version's default relies on, which was needed for
+    that version's hand-built JSON but would double-escape incorrectly if
+    passed straight into json.dumps() here) - callers passing a plain color
+    string (hex or var()) are unaffected either way.
+    """
+    bg_color = bg_color.replace("\\u002d", "-")
+    row_id = gen_id()
+    col1_id = gen_id()
+    col2_id = gen_id()
+    row_attrs = {
+        "uniqueID": row_id, "colLayout": col_layout, "kbVersion": 2,
+        "bgColor": bg_color,
+        "padding": [112, 40, 112, 40], "paddingUnit": "px",
+        "tabletPadding": [80, 32, 80, 32],
+        "mobilePadding": [64, 24, 64, 24],
+        "customGutter": [72, "", ""], "columnGutter": "custom", "gutterType": "px",
+        "verticalAlignment": "stretch",
+        "tabletLayout": "row",
+    }
+    col1_attrs = {"uniqueID": col1_id, "kbVersion": 2}
+    col2_attrs = {"id": 2, "uniqueID": col2_id, "kbVersion": 2}
+    row_attrs_json = json.dumps(row_attrs, ensure_ascii=False, separators=(",", ":"))
+    col1_attrs_json = json.dumps(col1_attrs, ensure_ascii=False, separators=(",", ":"))
+    col2_attrs_json = json.dumps(col2_attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f'<!-- wp:kadence/rowlayout {row_attrs_json} -->\n'
+        f'<!-- wp:kadence/column {col1_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{col1_id}">'
+        f'<div class="kt-inside-inner-col">{left_col}</div></div>\n'
+        f'<!-- /wp:kadence/column -->\n'
+        f'<!-- wp:kadence/column {col2_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{col2_id}">'
+        f'<div class="kt-inside-inner-col">{right_col}</div></div>\n'
+        f'<!-- /wp:kadence/column -->\n'
+        f'<!-- /wp:kadence/rowlayout -->'
+    )
+
+
+def _build_two_col_outer(left_col, right_col, bg_color="var(\\u002d\\u002dast-global-color-5)",
+                          use_kadence=False, col_layout="left-golden"):
+    """Full-width two-column content area. use_kadence picks between the
+    original Spectra/uagb markup and the converted Kadence markup - see the
+    two implementations above."""
+    if use_kadence:
+        return _build_two_col_outer_kadence(left_col, right_col, bg_color=bg_color, col_layout=col_layout)
+    return _build_two_col_outer_uagb(left_col, right_col, bg_color=bg_color)
 
 
 def _build_left_col(content, width=65, bg_color=None):
@@ -1657,7 +1740,7 @@ def build_about_page(config):
 
     left_col = _build_left_col(left_content, width=65)
     sidebar  = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
-    return banner + "\n\n" + _build_two_col_outer(left_col, sidebar)
+    return banner + "\n\n" + _build_two_col_outer(left_col, sidebar, use_kadence=config.get("use_kadence", False))
 
 
 def build_faq_page(config):
@@ -1695,7 +1778,7 @@ def build_faq_page(config):
 
     left_col = _build_left_col(left_content, width=65)
     sidebar  = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
-    return banner + "\n\n" + _build_two_col_outer(left_col, sidebar)
+    return banner + "\n\n" + _build_two_col_outer(left_col, sidebar, use_kadence=config.get("use_kadence", False))
 
 
 def build_contact_page(config):
@@ -1727,7 +1810,9 @@ def build_contact_page(config):
     # background is left at the theme default (already white).
     left_col  = _build_left_col(left_content, width=45)
     right_col = _build_left_col(right_content, width=50, bg_color="#FFFFFF")
-    return banner + "\n\n" + _build_two_col_outer(left_col, right_col, bg_color="#F2F5F7")
+    return banner + "\n\n" + _build_two_col_outer(left_col, right_col, bg_color="#F2F5F7",
+                                                   use_kadence=config.get("use_kadence", False),
+                                                   col_layout="equal")
 
 
 # ============================================================
