@@ -2038,8 +2038,11 @@ def _build_card_grid(cards_markup, use_kadence=False):
     return _build_card_grid_uagb(cards_markup)
 
 
-def _build_landing_outer(left_col, right_col):
-    """Full-width two-column outer for landing pages (rowGapTablet:80, linkHoverColor)."""
+def _build_landing_outer_uagb(left_col, right_col):
+    """Full-width two-column outer for landing pages (rowGapTablet:80,
+    linkHoverColor) - original Spectra/uagb version, kept during the Kadence
+    migration for comparison/rollback. See _build_landing_outer_kadence for
+    the converted version; _build_landing_outer below picks between them."""
     outer_id = gen_id()
     return (
         f'<!-- wp:uagb/container {{"block_id":"{outer_id}","directionDesktop":"row",'
@@ -2066,6 +2069,89 @@ def _build_landing_outer(left_col, right_col):
         f'{left_col}\n{right_col}\n'
         f'</div></div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def _build_landing_outer_kadence(left_col, right_col):
+    """Full-width two-column outer for landing pages - Kadence version.
+
+    Uses a real kadence/rowlayout with 2 columns - unlike _build_card_grid,
+    this genuinely fits kadence/rowlayout's fixed-2-slot shape (exactly one
+    main-content column + one sidebar column, not a variable-N-items grid).
+
+    Every attribute below was verified live this session specifically for
+    this conversion, by pushing hand-built markup to a scratch page and
+    reading the compiled CSS:
+    - `colLayout:"left-golden"` produces `grid-template-columns:
+      minmax(0,2fr) minmax(0,1fr)` (a 2:1 desktop split) - close to but not
+      identical to the original's exact 70/30 (the original's ratio came
+      from the sidebar's own hardcoded 30% width, not from this container;
+      Kadence's built-in ratio presets don't include an exact 70/30, so
+      66.7/33.3 is the closest fit, not a byte-for-byte match).
+    - `bgColor` (plain color), `padding`/`tabletPadding`/`mobilePadding`
+      (flat `[top,right,bottom,left]` arrays + `paddingUnit`), and
+      `customGutter`+`columnGutter:"custom"`+`gutterType` (column-gap) all
+      reproduce the original's exact desktop/tablet/mobile padding values
+      and column-gap (112/40 desktop, 80/32 tablet, 64/24 mobile, 72px gap).
+    - `verticalAlignment:"stretch"` (confirmed via the resulting
+      `kt-row-valign-stretch` class) is the equivalent of the original's
+      `equalHeight:true`.
+    - `tabletLayout:"row"` was needed to match the original's
+      `directionTablet:"column"` (full stacking at tablet width) - Kadence's
+      own default only auto-collapses to one column at its narrower
+      "mobile" breakpoint, staying a 2-column split at "tablet" unless this
+      is set explicitly.
+
+    Two things were deliberately NOT reproduced, rather than guessed at:
+    - The original's `rowGapTablet:80`/`rowGapMobile:40` (vertical spacing
+      between the two columns once they stack). A `customRowGutter`/
+      `rowGutterType` attribute pair was tried as a hypothesis and pushed
+      live, but produced no row-gap rule at any breakpoint in the compiled
+      CSS - rather than keep guessing at attribute names, this is left at
+      Kadence's own unspecified default spacing, a real (if minor) fidelity
+      gap, called out here rather than silently dropped.
+    - The original's `linkHoverColor` (a hover-color var applied to the
+      whole container, likely affecting a CTA link inside). No equivalent
+      was found or verified on kadence/rowlayout; skipped rather than guess.
+    """
+    row_id = gen_id()
+    col1_id = gen_id()
+    col2_id = gen_id()
+    row_attrs = {
+        "uniqueID": row_id, "colLayout": "left-golden", "kbVersion": 2,
+        "bgColor": "var(--ast-global-color-5)",
+        "padding": [112, 40, 112, 40], "paddingUnit": "px",
+        "tabletPadding": [80, 32, 80, 32],
+        "mobilePadding": [64, 24, 64, 24],
+        "customGutter": [72, "", ""], "columnGutter": "custom", "gutterType": "px",
+        "verticalAlignment": "stretch",
+        "tabletLayout": "row",
+    }
+    col1_attrs = {"uniqueID": col1_id, "kbVersion": 2}
+    col2_attrs = {"id": 2, "uniqueID": col2_id, "kbVersion": 2}
+    row_attrs_json = json.dumps(row_attrs, ensure_ascii=False, separators=(",", ":"))
+    col1_attrs_json = json.dumps(col1_attrs, ensure_ascii=False, separators=(",", ":"))
+    col2_attrs_json = json.dumps(col2_attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f'<!-- wp:kadence/rowlayout {row_attrs_json} -->\n'
+        f'<!-- wp:kadence/column {col1_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{col1_id}">'
+        f'<div class="kt-inside-inner-col">{left_col}</div></div>\n'
+        f'<!-- /wp:kadence/column -->\n'
+        f'<!-- wp:kadence/column {col2_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{col2_id}">'
+        f'<div class="kt-inside-inner-col">{right_col}</div></div>\n'
+        f'<!-- /wp:kadence/column -->\n'
+        f'<!-- /wp:kadence/rowlayout -->'
+    )
+
+
+def _build_landing_outer(left_col, right_col, use_kadence=False):
+    """Full-width two-column outer for landing pages. use_kadence picks
+    between the original Spectra/uagb markup and the converted Kadence
+    markup - see the two implementations above."""
+    if use_kadence:
+        return _build_landing_outer_kadence(left_col, right_col)
+    return _build_landing_outer_uagb(left_col, right_col)
 
 
 # Icon map keyed on service slug (service.lower().replace(" ", "-").replace(",", ""))
@@ -2122,7 +2208,7 @@ def build_service_areas_page(config):
 
     grid    = _build_card_grid("\n".join(cards), use_kadence=config.get("use_kadence", False))
     sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
-    return banner + "\n\n" + _build_landing_outer(grid, sidebar)
+    return banner + "\n\n" + _build_landing_outer(grid, sidebar, use_kadence=config.get("use_kadence", False))
 
 
 def build_services_page(config):
@@ -2161,7 +2247,7 @@ def build_services_page(config):
 
     grid    = _build_card_grid("\n".join(cards), use_kadence=config.get("use_kadence", False))
     sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
-    return banner + "\n\n" + _build_landing_outer(grid, sidebar)
+    return banner + "\n\n" + _build_landing_outer(grid, sidebar, use_kadence=config.get("use_kadence", False))
 
 
 
