@@ -1738,8 +1738,11 @@ def build_contact_page(config):
 # LANDING PAGE BUILDERS (Service Areas + Services)
 # ============================================================
 
-def _build_landing_card(icon, heading, desc, link, icon_color=None):
-    """Single icon card: colored icon bg + info-box h3 + Learn More button."""
+def _build_landing_card_uagb(icon, heading, desc, link, icon_color=None):
+    """Single icon card: colored icon bg + info-box h3 + Learn More button -
+    original Spectra/uagb version, kept during the Kadence migration for
+    comparison/rollback. See _build_landing_card_kadence for the converted
+    version; _build_landing_card below picks between them."""
     card_id      = gen_id()
     icon_cont_id = gen_id()
     infobox_id   = gen_id()
@@ -1849,6 +1852,117 @@ def _build_landing_card(icon, heading, desc, link, icon_color=None):
     )
 
 
+def _build_landing_card_kadence(icon, heading, desc, link, icon_color=None):
+    """Single icon card: colored icon bg + info-box + Learn More button -
+    Kadence version.
+
+    The feature icon stays a plain `wp:icon` block, byte-for-byte identical
+    to the uagb version's markup - it's a core Gutenberg block, not part of
+    the Spectra/uagb family, so it's untouched by this migration.
+
+    The icon's colored badge container and the outer card both use
+    kadence/column attributes verified live this session specifically for
+    this conversion (not previously used elsewhere in this file): background
+    (plain color), padding (a flat [top,right,bottom,left] array, paddingType
+    unit), borderRadius (4-element array + borderRadiusUnit), and
+    displayShadow+shadow (array of one {color,opacity,spread,blur,hOffset,
+    vOffset,inset} object) - all four confirmed by pushing real markup to a
+    scratch page on rar01.web-samples.com and reading the compiled CSS
+    (padding-*, box-shadow, border-*-radius, background-color all matched
+    the intended values exactly, including reproducing the original's exact
+    box-shadow numbers: 0px 4px 8px 6px rgba(0,0,0,0.1)). borderStyle uses
+    the same [color,style,width]-per-side dict shape already verified for
+    kadence_button's border.
+
+    The heading+desc still goes through kadence_info_box (renders as h2, not
+    h3 - same accepted tradeoff as build_service_card_kadence, since
+    kadence/infobox always sources its title from a hardcoded h2 tag).
+
+    The button reuses the exact color/hover mapping already established for
+    build_service_card_kadence's "Learn More" button (iconColor's value
+    doubling as the button's own background - background var ast-5, hover
+    swap to ast-7/ast-1). The padding tuple here is (7,10,7,13), confirmed
+    live (2026-09-27) to be [top,right,bottom,left] order - matching the
+    original's topPadding7/rightPadding10/bottomPadding7/leftPadding13
+    exactly (see the separately-flagged task for the swapped-order bug this
+    same check found in the already-shipped build_service_card_kadence).
+
+    Still drops into the still-uagb _build_card_grid parent (not yet
+    converted) via the same flex_basis_percent=33 sizing wrapper already
+    proven to work in that exact parent context by build_service_card_kadence.
+    """
+    row_id = gen_id()
+    card_col_id = gen_id()
+    icon_col_id = gen_id()
+    _ic = icon_color if icon_color else 'var:preset|color|ast-global-color-0'
+    _cs = f',"color":{{"text":"{icon_color}"}}' if icon_color else ''
+    _tc = '' if icon_color else ',"textColor":"ast-global-color-0"'
+
+    icon_html = (
+        f'<!-- wp:icon {{"icon":"{icon}","align":"center",'
+        f'"style":{{"dimensions":{{"width":"124px"}},'
+        f'"elements":{{"link":{{"color":{{"text":"{_ic}"}}}}}},'
+        f'"border":{{"radius":{{"topLeft":"12px","topRight":"12px",'
+        f'"bottomLeft":"12px","bottomRight":"12px"}}}}{_cs}}}'
+        f'{_tc}}} /-->'
+    )
+
+    icon_border_side = ["var(--ast-global-color-5)", "solid", "1"]
+    icon_col_attrs = {
+        "uniqueID": icon_col_id, "kbVersion": 2,
+        "background": "var(--ast-global-color-4)",
+        "borderStyle": [{"top": icon_border_side, "right": icon_border_side,
+                          "bottom": icon_border_side, "left": icon_border_side, "unit": "px"}],
+    }
+    icon_col_attrs_json = json.dumps(icon_col_attrs, ensure_ascii=False, separators=(",", ":"))
+    icon_box_html = (
+        f'<!-- wp:kadence/column {icon_col_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{icon_col_id}">'
+        f'<div class="kt-inside-inner-col">{icon_html}</div></div>\n'
+        f'<!-- /wp:kadence/column -->'
+    )
+
+    info_box_html = kadence_info_box(heading, desc, halign="left")
+    button_html = kadence_button(
+        "Learn More", link,
+        icon="fas_chevron-right", icon_side="right",
+        color="#ffffff", background="var(--ast-global-color-5)",
+        color_hover="var(--ast-global-color-1)", background_hover="var(--ast-global-color-7)",
+        border_radius=30, padding=(7, 10, 7, 13),
+    )
+
+    card_col_attrs = {
+        "uniqueID": card_col_id, "kbVersion": 2,
+        "background": "var(--ast-global-color-5)",
+        "padding": [20, 20, 20, 20], "paddingType": "px",
+        "borderRadius": [6, 6, 6, 6], "borderRadiusUnit": "px",
+        "displayShadow": True,
+        "shadow": [{"color": "#000000", "opacity": 0.1, "spread": 6, "blur": 8,
+                     "hOffset": 0, "vOffset": 4, "inset": False}],
+    }
+    card_col_attrs_json = json.dumps(card_col_attrs, ensure_ascii=False, separators=(",", ":"))
+    card_inner = icon_box_html + info_box_html + button_html
+    return (
+        f'<div style="flex:0 0 33%;max-width:33%;">'
+        f'<!-- wp:kadence/rowlayout {{"uniqueID":"{row_id}","columns":1,"colLayout":"equal","kbVersion":2}} -->\n'
+        f'<!-- wp:kadence/column {card_col_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{card_col_id}">'
+        f'<div class="kt-inside-inner-col">{card_inner}</div></div>\n'
+        f'<!-- /wp:kadence/column -->\n'
+        f'<!-- /wp:kadence/rowlayout -->'
+        f'</div>'
+    )
+
+
+def _build_landing_card(icon, heading, desc, link, icon_color=None, use_kadence=False):
+    """Single icon card. use_kadence picks between the original Spectra/uagb
+    markup and the converted Kadence markup - see the two implementations
+    above."""
+    if use_kadence:
+        return _build_landing_card_kadence(icon, heading, desc, link, icon_color=icon_color)
+    return _build_landing_card_uagb(icon, heading, desc, link, icon_color=icon_color)
+
+
 def _build_card_grid(cards_markup):
     """2-column card grid container (auto width on desktop, 100% on tablet)."""
     col_id = gen_id()
@@ -1952,7 +2066,8 @@ def build_service_areas_page(config):
         state_slug = state.lower()
         url        = f"/{niche_slug}-services-in-{city_slug}-{state_slug}/"
         desc       = f"{niche_short} services in {city}, {state} and surrounding communities."
-        cards.append(_build_landing_card("core/map-marker", city, desc, url, icon_color="#bdc9d1"))
+        cards.append(_build_landing_card("core/map-marker", city, desc, url, icon_color="#bdc9d1",
+                                          use_kadence=config.get("use_kadence", False)))
 
     grid    = _build_card_grid("\n".join(cards))
     sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
