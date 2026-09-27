@@ -972,7 +972,7 @@ def build_service_card_kadence(service_name, description, service_url, img_url, 
         icon="fas_chevron-right", icon_side="right",
         color="#ffffff", background="var(--ast-global-color-5)",
         color_hover="var(--ast-global-color-1)", background_hover="var(--ast-global-color-7)",
-        border_radius=30, padding=(7, 13, 7, 10),
+        border_radius=30, padding=(7, 10, 7, 13),
     )
     card_inner = img_html + info_box_html + button_html
     return kadence_row(card_inner, flex_basis_percent=33)
