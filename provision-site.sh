@@ -92,6 +92,7 @@ section "Installing Free Plugins"
 
 FREE_PLUGINS=(
     "ultimate-addons-for-gutenberg"
+    "kadence-blocks"
     "header-footer-elementor"
     "seo-by-rank-math"
     "elementor"
