@@ -695,8 +695,11 @@ def build_service_area_section(area_h2, area_paragraph, faq_h2, faq_block, use_k
     return build_service_area_section_uagb(area_h2, area_paragraph, faq_h2, faq_block)
 
 
-def build_sidebar(sidebar_ref):
-    """30% sidebar ‚Äî outer wrapper sets width, inner container handles sticky."""
+def build_sidebar_uagb(sidebar_ref):
+    """30% sidebar — outer wrapper sets width, inner container handles sticky.
+    Original Spectra/uagb version, kept during the Kadence migration for
+    comparison/rollback. See build_sidebar_kadence for the converted
+    version; build_sidebar below picks between them."""
     outer_id = gen_id()
     inner_id = gen_id()
 
@@ -722,6 +725,32 @@ def build_sidebar(sidebar_ref):
         f'</div>\n<!-- /wp:uagb/container -->'
         f'</div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def build_sidebar_kadence(sidebar_ref):
+    """30% sidebar — Kadence version. This one is pure layout, not content,
+    so it doesn't need a Kadence-specific "sticky" feature at all: the old
+    uagb/container sticky option was actually a JS-driven position:fixed
+    system with a "restricted" stop-before-footer mode (confirmed by reading
+    ultimate-addons-for-gutenberg's own frontend.js.php + CSS source) — not
+    plain CSS sticky. Standard CSS `position:sticky` reproduces the same
+    practical effect here: it naturally stops sticking once it reaches the
+    bottom of its own column, which — since the still-uagb two-column parent
+    this drops into keeps `equalHeight:true` — is exactly where the main
+    content ends, i.e. it won't overlap the footer either. The 30%-wide
+    flex-child sizing uses the same wrapper trick as build_service_card_kadence,
+    since the parent row is still the old uagb/container(direction:row)."""
+    sticky_html = f'<div style="position:sticky;top:40px;"><!-- wp:block {{"ref":{sidebar_ref}}} /--></div>'
+    return kadence_row(sticky_html, flex_basis_percent=30)
+
+
+def build_sidebar(sidebar_ref, use_kadence=False):
+    """30% sidebar. use_kadence picks between the original Spectra/uagb
+    markup and the converted Kadence markup — see the two implementations
+    above."""
+    if use_kadence:
+        return build_sidebar_kadence(sidebar_ref)
+    return build_sidebar_uagb(sidebar_ref)
 
 
 def build_service_card_uagb(service_name, description, service_url, img_url, alt_text=""):
@@ -935,7 +964,7 @@ def build_individual_service_page(c, config, service="", city="", state=""):
         f'</div>\n<!-- /wp:uagb/container -->'
     )
 
-    sidebar  = build_sidebar(sidebar_ref)
+    sidebar  = build_sidebar(sidebar_ref, use_kadence=use_kadence)
     outer_id = gen_id()
     content_area = (
         f'<!-- wp:uagb/container {{"block_id":"{outer_id}","directionDesktop":"row",'
@@ -1026,7 +1055,7 @@ def build_city_overview_page(c, services, config):
         f'<div class="wp-block-uagb-container uagb-layout-grid uagb-block-{grid_inner_id}">\n'
         f'{cards_markup}\n'
         f'</div>\n<!-- /wp:uagb/container -->\n'
-        f'{build_sidebar(sidebar_ref)}\n'
+        f'{build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))}\n'
         f'</div></div>\n<!-- /wp:uagb/container -->'
     )
 
@@ -1540,7 +1569,7 @@ def build_about_page(config):
     )
 
     left_col = _build_left_col(left_content, width=65)
-    sidebar  = build_sidebar(sidebar_ref)
+    sidebar  = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_two_col_outer(left_col, sidebar)
 
 
@@ -1578,7 +1607,7 @@ def build_faq_page(config):
     )
 
     left_col = _build_left_col(left_content, width=65)
-    sidebar  = build_sidebar(sidebar_ref)
+    sidebar  = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_two_col_outer(left_col, sidebar)
 
 
@@ -1839,7 +1868,7 @@ def build_service_areas_page(config):
         cards.append(_build_landing_card("core/map-marker", city, desc, url, icon_color="#bdc9d1"))
 
     grid    = _build_card_grid("\n".join(cards))
-    sidebar = build_sidebar(sidebar_ref)
+    sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_landing_outer(grid, sidebar)
 
 
@@ -1878,7 +1907,7 @@ def build_services_page(config):
                                          use_kadence=config.get("use_kadence", False)))
 
     grid    = _build_card_grid("\n".join(cards))
-    sidebar = build_sidebar(sidebar_ref)
+    sidebar = build_sidebar(sidebar_ref, use_kadence=config.get("use_kadence", False))
     return banner + "\n\n" + _build_landing_outer(grid, sidebar)
 
 
