@@ -2808,47 +2808,73 @@ def build_homepage(cfg, wp_path):
             content = content.replace('"link":"#"', f'"link":"{link}"', 1)
             content = content.replace('href="#"', f'href="{link}"', 1)
 
-    # ── 8. How It Works — fix step 2 (duplicate of step 1) ───────────────────
-    anchor = "uagb-block-335d5f77"
-    pos    = content.find(anchor)
-    if pos >= 0:
-        tail = content[pos:]
-        tail = tail.replace(
-            '<h4 class="wp-block-heading has-text-align-center">Call or Request Online</h4>',
-            '<h4 class="wp-block-heading has-text-align-center">We Arrive &amp; Diagnose</h4>',
-            1
+    if cfg.get("use_kadence", False):
+        # ── 8 (Kadence). How It Works — steps 1/2 text (niche-generic) ──────────
+        # The Kadence template's step cards already have the CORRECT, distinct
+        # text for each step baked in directly - not the original's step-1/
+        # step-2 duplicate-placeholder trick (both steps start out byte-
+        # identical in the uagb template, requiring the "uagb-block-335d5f77"
+        # class-name anchor below to tell them apart positionally before
+        # rewriting step 2 - a markup-structure-dependent trick that would
+        # silently no-op under any other block family). Step 3's paragraph and
+        # the section intro are also niche-independent (see the unconditional
+        # replacements further below) and already have their final wording
+        # baked in, so only these two sentences need a runtime niche-word swap.
+        content = content.replace(
+            "Tell us about your drain cleaning problem and we’ll schedule a fast visit.",
+            f"Tell us about your {svc_name.lower()} problem and we’ll schedule a fast visit."
         )
-        for em in ["—", "--"]:
+        content = content.replace(
+            "A drain cleaning expert arrives at your door fast, pinpoints the exact cause of the "
+            "problem, and walks you through the solution — no surprises.",
+            f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause of the "
+            "problem, and walks you through the solution — no surprises."
+        )
+    else:
+        # ── 8. How It Works — fix step 2 (duplicate of step 1) ───────────────────
+        anchor = "uagb-block-335d5f77"
+        pos    = content.find(anchor)
+        if pos >= 0:
+            tail = content[pos:]
             tail = tail.replace(
-                f"Contact us any time {em} we’re available 24/7. "
-                "Tell us about your drain cleaning problem and we’ll schedule a fast visit.",
-                f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause "
-                f"of the problem, and walks you through the solution {em} no surprises.",
+                '<h4 class="wp-block-heading has-text-align-center">Call or Request Online</h4>',
+                '<h4 class="wp-block-heading has-text-align-center">We Arrive &amp; Diagnose</h4>',
                 1
             )
-            tail = tail.replace(
-                f"Contact us any time {em} we're available 24/7. "
-                "Tell us about your drain cleaning problem and we'll schedule a fast visit.",
-                f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause "
-                f"of the problem, and walks you through the solution {em} no surprises.",
-                1
-            )
-        content = content[:pos] + tail
+            for em in ["—", "--"]:
+                tail = tail.replace(
+                    f"Contact us any time {em} we’re available 24/7. "
+                    "Tell us about your drain cleaning problem and we’ll schedule a fast visit.",
+                    f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause "
+                    f"of the problem, and walks you through the solution {em} no surprises.",
+                    1
+                )
+                tail = tail.replace(
+                    f"Contact us any time {em} we're available 24/7. "
+                    "Tell us about your drain cleaning problem and we'll schedule a fast visit.",
+                    f"A {svc_name.lower()} expert arrives at your door fast, pinpoints the exact cause "
+                    f"of the problem, and walks you through the solution {em} no surprises.",
+                    1
+                )
+            content = content[:pos] + tail
 
-    # ── 8b. How It Works — step 1 text (niche-generic; must run AFTER section 8,
-    # since step 1 and step 2 start out as identical text and section 8 needs
-    # the original duplicate intact to tell step 2 apart) ──────────────────────
-    for em in ["—", "--"]:
-        for apos in ["’", "'"]:
-            content = content.replace(
-                f"Contact us any time {em} we{apos}re available 24/7. "
-                f"Tell us about your drain cleaning problem and we{apos}ll schedule a fast visit.",
-                f"Contact us any time {em} we{apos}re available 24/7. "
-                f"Tell us about your {svc_name.lower()} problem and we{apos}ll schedule a fast visit.",
-                1
-            )
+        # ── 8b. How It Works — step 1 text (niche-generic; must run AFTER section 8,
+        # since step 1 and step 2 start out as identical text and section 8 needs
+        # the original duplicate intact to tell step 2 apart) ──────────────────────
+        for em in ["—", "--"]:
+            for apos in ["’", "'"]:
+                content = content.replace(
+                    f"Contact us any time {em} we{apos}re available 24/7. "
+                    f"Tell us about your drain cleaning problem and we{apos}ll schedule a fast visit.",
+                    f"Contact us any time {em} we{apos}re available 24/7. "
+                    f"Tell us about your {svc_name.lower()} problem and we{apos}ll schedule a fast visit.",
+                    1
+                )
 
     # ── 8c. How It Works — step 3 and section intro ───────────────────────────
+    # Both unconditional/niche-independent - the Kadence template already has
+    # this final wording baked in directly, so these are no-ops on that path
+    # (harmless: .replace() on text that isn't present just returns unchanged).
     content = content.replace(
         "We clear the blockage, walk you through what we found, and clean up before we leave.",
         "We get the job done, walk you through what we found, and clean up before we leave."
