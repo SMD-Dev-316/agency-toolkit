@@ -473,8 +473,11 @@ def build_faq_block(faqs):
     )
 
 
-def build_banner(h1_text, subtitle, banner_cta_ref, banner_image_url=""):
-    """Full-width banner with H1 info-box and reusable CTA button pattern."""
+def build_banner_uagb(h1_text, subtitle, banner_cta_ref, banner_image_url=""):
+    """Full-width banner with H1 info-box and reusable CTA button pattern —
+    original Spectra/uagb version, kept during the Kadence migration for
+    comparison/rollback. See build_banner_kadence for the converted version;
+    build_banner below picks between them."""
     outer_id  = gen_id()
     inner_id  = gen_id()
     ibox_id   = gen_id()
@@ -521,6 +524,66 @@ def build_banner(h1_text, subtitle, banner_cta_ref, banner_image_url=""):
         f'</div>\n<!-- /wp:uagb/container -->'
         f'</div></div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def build_banner_kadence(h1_text, subtitle, banner_cta_ref, banner_image_url=""):
+    """Full-width banner with H1 + subtitle + reusable CTA button — Kadence
+    version. Background color/image + color overlay ARE real kadence/column
+    attributes (verified live 2026-09-27): "background" (plain color
+    string), "backgroundImg" (array with a "bgImg" url plus cover/position/
+    attachment/repeat defaults), "overlay" (plain color string for the tint
+    on top) + "overlayOpacity". A "kb-section-has-overlay" class is added
+    automatically by the block itself when overlay is set — confirmed in
+    the real saved markup, not something this code needs to add.
+
+    H1/subtitle deliberately do NOT use kadence_info_box: that helper
+    hardcodes an <h2> tag (verified live for the info-box use case), but
+    this needs a real page <h1> for SEO, so it uses kadence_heading(level=1)
+    plus a plain inline-styled paragraph instead.
+    """
+    col_id = gen_id()
+    row_id = gen_id()
+
+    col_attrs = {"uniqueID": col_id, "kbVersion": 2}
+    if banner_image_url:
+        col_attrs["backgroundImg"] = [{
+            "bgImg": banner_image_url, "bgImgSize": "cover",
+            "bgImgPosition": "center center", "bgImgAttachment": "scroll",
+            "bgImgRepeat": "no-repeat",
+        }]
+        col_attrs["overlay"] = "var(--ast-global-color-0)"
+        col_attrs["overlayOpacity"] = 0.86
+        overlay_class = " kb-section-has-overlay"
+    else:
+        col_attrs["background"] = "var(--ast-global-color-2)"
+        overlay_class = ""
+
+    col_attrs_json = json.dumps(col_attrs, ensure_ascii=False, separators=(",", ":"))
+
+    inner = (
+        kadence_heading(h1_text, level=1, color="#ffffff")
+        + f'<!-- wp:paragraph --><p style="color:#ffffff;">{subtitle}</p><!-- /wp:paragraph -->'
+        + f'<!-- wp:block {{"ref":{banner_cta_ref}}} /-->'
+    )
+
+    return (
+        f'<!-- wp:kadence/rowlayout {{"uniqueID":"{row_id}","columns":1,"colLayout":"equal","kbVersion":2}} -->\n'
+        f'<!-- wp:kadence/column {col_attrs_json} -->\n'
+        f'<div class="wp-block-kadence-column kadence-column{col_id}{overlay_class}"><div class="kt-inside-inner-col">'
+        f'{inner}'
+        f'</div></div>\n'
+        f'<!-- /wp:kadence/column -->\n'
+        f'<!-- /wp:kadence/rowlayout -->'
+    )
+
+
+def build_banner(h1_text, subtitle, banner_cta_ref, banner_image_url="", use_kadence=False):
+    """Full-width banner with H1 + subtitle + reusable CTA button.
+    use_kadence picks between the original Spectra/uagb markup and the
+    converted Kadence markup — see the two implementations above."""
+    if use_kadence:
+        return build_banner_kadence(h1_text, subtitle, banner_cta_ref, banner_image_url)
+    return build_banner_uagb(h1_text, subtitle, banner_cta_ref, banner_image_url)
 
 
 def build_uagb_separator(sep_id):
@@ -922,7 +985,7 @@ def build_individual_service_page(c, config, service="", city="", state=""):
 
     faq_block = build_faq_block(c["faqs"])
 
-    banner = build_banner(c["banner_h1"], c["banner_subtitle"], banner_cta_ref)
+    banner = build_banner(c["banner_h1"], c["banner_subtitle"], banner_cta_ref, use_kadence=config.get("use_kadence", False))
 
     use_kadence = config.get("use_kadence", False)
     s1 = build_content_section(
@@ -1003,7 +1066,7 @@ def build_city_overview_page(c, services, config):
     img_base       = config.get("rar_image_base", "")
     service_images = config.get("service_images", {})
 
-    banner = build_banner(c["banner_h1"], c["banner_subtitle"], banner_cta_ref)
+    banner = build_banner(c["banner_h1"], c["banner_subtitle"], banner_cta_ref, use_kadence=config.get("use_kadence", False))
 
     # Build service cards
     cards = []
@@ -1550,7 +1613,7 @@ def build_about_page(config):
     banner = build_banner(
         f"About {brand}",
         f"Locally owned and operated {niche} you can trust.",
-        banner_cta_ref
+        banner_cta_ref, use_kadence=config.get("use_kadence", False)
     )
 
     head_id = gen_id()
@@ -1590,7 +1653,7 @@ def build_faq_page(config):
     banner = build_banner(
         "Frequently Asked Questions",
         f"Common questions about our {niche}.",
-        banner_cta_ref
+        banner_cta_ref, use_kadence=config.get("use_kadence", False)
     )
 
     faq_block = build_faq_block(faqs)
@@ -1620,7 +1683,7 @@ def build_contact_page(config):
     banner = build_banner(
         "Contact Us",
         "Get in touch for a free quote or to schedule service.",
-        banner_cta_ref
+        banner_cta_ref, use_kadence=config.get("use_kadence", False)
     )
 
     left_content  = f'<!-- wp:block {{"ref":{contact_ref}}} /-->'
@@ -1852,7 +1915,7 @@ def build_service_areas_page(config):
     banner = build_banner(
         "Service Areas",
         f"Serving {primary_city}, {primary_state} and the surrounding region.",
-        banner_cta_ref
+        banner_cta_ref, use_kadence=config.get("use_kadence", False)
     )
 
     # Primary city first, then alphabetical
@@ -1889,7 +1952,7 @@ def build_services_page(config):
     banner = build_banner(
         f"{niche_short} Services",
         f"Professional {niche_short.lower()} services in {primary_city}, {primary_state}.",
-        banner_cta_ref
+        banner_cta_ref, use_kadence=config.get("use_kadence", False)
     )
 
     cards = []
