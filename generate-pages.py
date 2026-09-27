@@ -639,8 +639,11 @@ def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quot
     return build_content_section_uagb(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text, is_last)
 
 
-def build_service_area_section(area_h2, area_paragraph, faq_h2, faq_block):
-    """Service area paragraph + FAQ heading + Rank Math FAQ block."""
+def build_service_area_section_uagb(area_h2, area_paragraph, faq_h2, faq_block):
+    """Service area paragraph + FAQ heading + Rank Math FAQ block — original
+    Spectra/uagb version, kept during the Kadence migration for comparison/
+    rollback. See build_service_area_section_kadence for the converted
+    version; build_service_area_section below picks between them."""
     sec_id   = gen_id()
     area_hid = gen_id()
     faq_hid  = gen_id()
@@ -664,6 +667,32 @@ def build_service_area_section(area_h2, area_paragraph, faq_h2, faq_block):
         f'{build_uagb_separator(sep_id)}'
         f'</div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def build_service_area_section_kadence(area_h2, area_paragraph, faq_h2, faq_block):
+    """Service area paragraph + FAQ heading + Rank Math FAQ block — Kadence
+    version. faq_block is `rank-math/faq-block` markup, untouched by this
+    migration (not a Spectra block). The trailing separator is deliberately
+    left as the existing uagb/separator (not yet converted), same rationale
+    as build_content_section_kadence."""
+    sep_id = gen_id()
+
+    section_inner = (
+        kadence_heading(area_h2, level=2)
+        + f'<!-- wp:paragraph -->\n<p>{area_paragraph}</p>\n<!-- /wp:paragraph -->'
+        + kadence_heading(faq_h2, level=2)
+        + faq_block
+    )
+    return kadence_row(section_inner) + '\n' + build_uagb_separator(sep_id)
+
+
+def build_service_area_section(area_h2, area_paragraph, faq_h2, faq_block, use_kadence=False):
+    """Service area paragraph + FAQ heading + Rank Math FAQ block.
+    use_kadence picks between the original Spectra/uagb markup and the
+    converted Kadence markup — see the two implementations above."""
+    if use_kadence:
+        return build_service_area_section_kadence(area_h2, area_paragraph, faq_h2, faq_block)
+    return build_service_area_section_uagb(area_h2, area_paragraph, faq_h2, faq_block)
 
 
 def build_sidebar(sidebar_ref):
@@ -884,7 +913,7 @@ def build_individual_service_page(c, config, service="", city="", state=""):
     )
     s4 = build_service_area_section(
         c["service_area_h2"], c["service_area_paragraph"],
-        c["faq_h2"], faq_block
+        c["faq_h2"], faq_block, use_kadence=use_kadence
     )
 
     left_col_id = gen_id()
