@@ -2679,95 +2679,134 @@ def build_homepage(cfg, wp_path):
     # complete, niche-aware replacement — leaving the partial replace here would
     # consume half the sentence before section 9 can match the whole thing)
 
-    # ── 5/7. Service cards — title, description, and image (config-driven) ────
-    # The template hardcodes all 7 cards to the original drain services: only
-    # the image URL and link (section 6) were ever swapped per-niche, so a
-    # non-drain site previously shipped with correct images/links but literal
-    # drain-cleaning titles and descriptions. Walk the cards in file order,
-    # anchored on each card's placeholder image (reliably unique to this
-    # section), and rewrite title + description together with the image so
-    # all three always agree.
-    drain_img   = f"{site_url}/wp-content/uploads/rar/rect-drain-cleaning.jpg"
-    title_open  = '<h3 class="uagb-ifb-title">'
-    desc_open   = '<p class="uagb-ifb-desc">'
-    tempdesc_kv = '"tempHeadingDesc":"'
-    # Start right at the first card's own image block, not document position 0 —
-    # the hero and 4 trust badges each have their own tempHeadingDesc/title
-    # markup earlier in the page, and an anchor search starting at 0 would
-    # lock onto the hero's tempHeadingDesc instead of card 1's.
-    _pos = content.find(drain_img)
-    if _pos == -1:
-        _pos = 0
-    for svc in services:
-        slug      = svc.get("slug", "")
-        svc_label = svc.get("name", slug.replace("-", " ").title())
-        svc_lower = svc_label.lower()
-        # avoid "Commercial Gutter Services services in ..." when the config
-        # name already ends in "service"/"services"
-        tail_word = "" if svc_lower.endswith("service") or svc_lower.endswith("services") else " services"
-        new_img   = f"{rar_base}rect-{slug}.jpg"
-        new_desc  = (
-            f"Professional {svc_lower}{tail_word} in {city}, {state_abbr}. "
-            "Fast, reliable, and affordable."
-        )
+    if cfg.get("use_kadence", False):
+        # ── 5/6/7 (Kadence). Services grid — genuinely dynamic, not a fixed
+        # 7-slot relabel. The uagb template hardcodes exactly 7 card blocks
+        # (see the `else` branch below); the Kadence template instead has a
+        # single `HOMEPAGE_KADENCE_SERVICES_CARDS` marker that gets replaced
+        # here with N real build_service_card() cards, one per config
+        # service, wrapped in _build_card_grid() — the same helpers
+        # build_services_page() already uses, so a niche with fewer or more
+        # than 7 services now actually gets the right number of cards
+        # instead of leftover mislabeled slots or silently-dropped services
+        # (a real, pre-existing gap in the uagb path this fixes for the
+        # Kadence path only — decided 2026-09-27, not backported to uagb).
+        cards = []
+        for svc in services:
+            slug      = svc.get("slug", "")
+            svc_label = svc.get("name", slug.replace("-", " ").title())
+            svc_lower = svc_label.lower()
+            tail_word = "" if svc_lower.endswith("service") or svc_lower.endswith("services") else " services"
+            img_url   = f"{rar_base}rect-{slug}.jpg"
+            alt_text  = f"{svc_label} {city} {state_abbr}"
+            link      = f"/{slug}-in-{city_slug}-{state_slug}/"
+            desc      = (
+                f"Professional {svc_lower}{tail_word} in {city}, {state_abbr}. "
+                "Fast, reliable, and affordable."
+            )
+            cards.append(build_service_card(svc_label, desc, link, img_url, alt_text, use_kadence=True))
+        cards_html = _build_card_grid("\n".join(cards), use_kadence=True)
+        content = content.replace("<!-- HOMEPAGE_KADENCE_SERVICES_CARDS -->", cards_html, 1)
+    else:
+        # ── 5/7. Service cards — title, description, and image (config-driven) ────
+        # The template hardcodes all 7 cards to the original drain services: only
+        # the image URL and link (section 6) were ever swapped per-niche, so a
+        # non-drain site previously shipped with correct images/links but literal
+        # drain-cleaning titles and descriptions. Walk the cards in file order,
+        # anchored on each card's placeholder image (reliably unique to this
+        # section), and rewrite title + description together with the image so
+        # all three always agree.
+        #
+        # Known limitation (not fixed here - see the Kadence branch above,
+        # which fixes it for that path only): this only relabels however
+        # many of the template's 7 fixed card slots the loop reaches. A
+        # niche with fewer than 7 services leaves leftover slots showing
+        # stale drain-cleaning text; a niche with more than 7 silently drops
+        # the extras. Confirmed 2026-09-27 via a fresh read of this code -
+        # the "Niche review" fix (item 1 in the roadmap) only ever verified
+        # this loop against a fake *7-service* config, so the count-mismatch
+        # case was never actually exercised.
+        drain_img   = f"{site_url}/wp-content/uploads/rar/rect-drain-cleaning.jpg"
+        title_open  = '<h3 class="uagb-ifb-title">'
+        desc_open   = '<p class="uagb-ifb-desc">'
+        tempdesc_kv = '"tempHeadingDesc":"'
+        # Start right at the first card's own image block, not document position 0 —
+        # the hero and 4 trust badges each have their own tempHeadingDesc/title
+        # markup earlier in the page, and an anchor search starting at 0 would
+        # lock onto the hero's tempHeadingDesc instead of card 1's.
+        _pos = content.find(drain_img)
+        if _pos == -1:
+            _pos = 0
+        for svc in services:
+            slug      = svc.get("slug", "")
+            svc_label = svc.get("name", slug.replace("-", " ").title())
+            svc_lower = svc_label.lower()
+            # avoid "Commercial Gutter Services services in ..." when the config
+            # name already ends in "service"/"services"
+            tail_word = "" if svc_lower.endswith("service") or svc_lower.endswith("services") else " services"
+            new_img   = f"{rar_base}rect-{slug}.jpg"
+            new_desc  = (
+                f"Professional {svc_lower}{tail_word} in {city}, {state_abbr}. "
+                "Fast, reliable, and affordable."
+            )
 
-        # Image block — verified (all 7 cards, identical structure) to contain
-        # exactly this sequence: 3 JSON URL attrs (url/urlTablet/urlMobile),
-        # then the JSON title attr, then 4 more URL occurrences (3 srcset
-        # variants + rendered src), then the rendered title attr. The JSON
-        # title attr sits BETWEEN two groups of URL occurrences, so a plain
-        # "sweep all URLs, then look for title" approach skips past it — the
-        # URL search jumps straight to the next URL match on the far side of
-        # the title attr, without ever landing on the title text itself.
-        # Processing the exact known sequence in order avoids that.
-        card_ops = (
-            [(drain_img, new_img)] * 3
-            + [('"title":"Drain Cleaning"', f'"title":"{svc_label}"')]
-            + [(drain_img, new_img)] * 4
-            + [('title="Drain Cleaning"', f'title="{svc_label}"')]
-        )
-        for old, new in card_ops:
-            idx = content.find(old, _pos)
-            if idx == -1:
-                continue  # tolerate template drift rather than hard-fail
-            content = content[:idx] + new + content[idx + len(old):]
-            _pos = idx + len(new)
+            # Image block — verified (all 7 cards, identical structure) to contain
+            # exactly this sequence: 3 JSON URL attrs (url/urlTablet/urlMobile),
+            # then the JSON title attr, then 4 more URL occurrences (3 srcset
+            # variants + rendered src), then the rendered title attr. The JSON
+            # title attr sits BETWEEN two groups of URL occurrences, so a plain
+            # "sweep all URLs, then look for title" approach skips past it — the
+            # URL search jumps straight to the next URL match on the far side of
+            # the title attr, without ever landing on the title text itself.
+            # Processing the exact known sequence in order avoids that.
+            card_ops = (
+                [(drain_img, new_img)] * 3
+                + [('"title":"Drain Cleaning"', f'"title":"{svc_label}"')]
+                + [(drain_img, new_img)] * 4
+                + [('title="Drain Cleaning"', f'title="{svc_label}"')]
+            )
+            for old, new in card_ops:
+                idx = content.find(old, _pos)
+                if idx == -1:
+                    continue  # tolerate template drift rather than hard-fail
+                content = content[:idx] + new + content[idx + len(old):]
+                _pos = idx + len(new)
 
-        # tempHeadingDesc — the info-box block's cached JSON copy of the
-        # description. Must be kept in sync with the rendered <p> below, or
-        # reopening this block in the Gutenberg editor re-syncs the old
-        # drain-cleaning text back into the page from this stale attribute.
-        td_start = content.find(tempdesc_kv, _pos)
-        if td_start >= 0:
-            v_start = td_start + len(tempdesc_kv)
-            v_end   = content.find('"', v_start)
-            content = content[:v_start] + new_desc + content[v_end:]
-            _pos = v_start + len(new_desc)
+            # tempHeadingDesc — the info-box block's cached JSON copy of the
+            # description. Must be kept in sync with the rendered <p> below, or
+            # reopening this block in the Gutenberg editor re-syncs the old
+            # drain-cleaning text back into the page from this stale attribute.
+            td_start = content.find(tempdesc_kv, _pos)
+            if td_start >= 0:
+                v_start = td_start + len(tempdesc_kv)
+                v_end   = content.find('"', v_start)
+                content = content[:v_start] + new_desc + content[v_end:]
+                _pos = v_start + len(new_desc)
 
-        # Title — first title tag at/after this card's image
-        t_start = content.find(title_open, _pos)
-        if t_start >= 0:
-            t_text_start = t_start + len(title_open)
-            t_text_end   = content.find("</h3>", t_text_start)
-            content = content[:t_text_start] + svc_label + content[t_text_end:]
-            _pos = t_text_start + len(svc_label)
+            # Title — first title tag at/after this card's image
+            t_start = content.find(title_open, _pos)
+            if t_start >= 0:
+                t_text_start = t_start + len(title_open)
+                t_text_end   = content.find("</h3>", t_text_start)
+                content = content[:t_text_start] + svc_label + content[t_text_end:]
+                _pos = t_text_start + len(svc_label)
 
-        # Description — rendered <p> (replaces the entire original text,
-        # including the "Clogged Drain Repair<br>..." duplicate-title case,
-        # so no separate special-case is needed)
-        d_start = content.find(desc_open, _pos)
-        if d_start >= 0:
-            d_text_start = d_start + len(desc_open)
-            d_text_end   = content.find("</p>", d_text_start)
-            content = content[:d_text_start] + new_desc + content[d_text_end:]
-            _pos = d_text_start + len(new_desc)
+            # Description — rendered <p> (replaces the entire original text,
+            # including the "Clogged Drain Repair<br>..." duplicate-title case,
+            # so no separate special-case is needed)
+            d_start = content.find(desc_open, _pos)
+            if d_start >= 0:
+                d_text_start = d_start + len(desc_open)
+                d_text_end   = content.find("</p>", d_text_start)
+                content = content[:d_text_start] + new_desc + content[d_text_end:]
+                _pos = d_text_start + len(new_desc)
 
-    # ── 6. Service card links — replace "#" in config service order ───────────
-    for svc in services:
-        slug = svc.get("slug", "")
-        link = f"/{slug}-in-{city_slug}-{state_slug}/"
-        content = content.replace('"link":"#"', f'"link":"{link}"', 1)
-        content = content.replace('href="#"', f'href="{link}"', 1)
+        # ── 6. Service card links — replace "#" in config service order ───────────
+        for svc in services:
+            slug = svc.get("slug", "")
+            link = f"/{slug}-in-{city_slug}-{state_slug}/"
+            content = content.replace('"link":"#"', f'"link":"{link}"', 1)
+            content = content.replace('href="#"', f'href="{link}"', 1)
 
     # ── 8. How It Works — fix step 2 (duplicate of step 1) ───────────────────
     anchor = "uagb-block-335d5f77"
