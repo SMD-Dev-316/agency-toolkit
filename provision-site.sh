@@ -364,6 +364,107 @@ else
 fi
 
 # ============================================================
+# FOOTER SOCIAL ICONS (placed, but hidden until real profiles exist)
+# ============================================================
+# Placed in the footer builder on EVERY site automatically — no per-site
+# dragging in the Customizer. Hidden by Astra's own native behavior: an
+# icon with an empty "url" simply doesn't render on the front end at
+# all (confirmed by live testing, 2026-09-27) — no CSS class or
+# "enabled" toggle needed to hide it, though enabled stays true to match
+# the verified working configuration exactly. To activate for a renter:
+# set the URL per platform in Astra Customizer's Social Icons element.
+#
+# Every field below (icon names, the "icon_type" on YouTube/TikTok,
+# margin values) was read back from a real working test configuration
+# on 2026-09-27, not guessed — see project_prescale_roadmap.md item 11
+# for how this was verified. Placed in footer primary_3 (same column as
+# the existing Help+Contact widget), matching where it was tested and
+# confirmed to look right. Colors use the site's own global color
+# palette indices (var(--ast-global-color-N)) rather than fixed hex
+# values, so icons match whichever palette a given site uses.
+section "Configuring Footer Social Icons (hidden via empty URL)"
+
+cat > /tmp/set-social-icons.php << 'PHPEOF'
+<?php
+$settings = get_option('astra-settings', array());
+
+// Global color palette indices (as shown left-to-right in
+// Customize > Global Color Palette), chosen 2026-09-27:
+// icon = 1, background normal = 5, background hover = 7.
+$icon_color     = 'var(--ast-global-color-1)';
+$bg_color       = 'var(--ast-global-color-5)';
+$bg_hover_color = 'var(--ast-global-color-7)';
+
+$settings['footer-social-icons-1'] = array(
+    'items' => array(
+        array('id' => 'facebook',  'enabled' => true, 'source' => 'icon', 'url' => '', 'color' => $icon_color, 'background' => 'transparent', 'icon' => 'facebook-round',   'label' => 'Facebook'),
+        array('id' => 'instagram', 'enabled' => true, 'source' => 'icon', 'url' => '', 'color' => $icon_color, 'background' => 'transparent', 'icon' => 'instagram-square', 'label' => 'Instagram'),
+        array('id' => 'youtube',   'enabled' => true, 'url' => '', 'color' => $icon_color, 'background' => 'transparent', 'icon' => 'youtube', 'label' => 'YouTube', 'icon_type' => 'icon-library'),
+        array('id' => 'tiktok',    'enabled' => true, 'url' => '', 'color' => $icon_color, 'background' => 'transparent', 'icon' => 'tiktok',  'label' => 'TikTok',  'icon_type' => 'icon-library'),
+        array('id' => 'twitter',   'enabled' => true, 'source' => 'icon', 'url' => '', 'color' => $icon_color, 'background' => 'transparent', 'icon' => 'twitter-x', 'label' => 'Twitter'),
+    ),
+    'flag' => false,
+);
+
+// Icon/background color + radius controls — these are separate top-level
+// settings keys (not per-item), confirmed against a real footer-social-1-*
+// dump pulled from the live server on 2026-09-27. color-type stays 'custom'
+// so these uniform values apply instead of each platform's brand color.
+// label-toggle stays false — icon-only, no text labels next to icons.
+$settings['footer-social-1-color-type'] = 'custom';
+$settings['footer-social-1-color']      = array('desktop' => $icon_color);
+$settings['footer-social-1-h-color']    = array('desktop' => $icon_color);
+$settings['footer-social-1-bg-color']   = array('desktop' => $bg_color);
+$settings['footer-social-1-bg-h-color'] = array('desktop' => $bg_hover_color);
+$settings['footer-social-1-label-toggle'] = false;
+
+// Icon size (px), spacing between icons (px, split evenly left/right by
+// Astra's own dynamic-css code), and background padding (px, single
+// scalar — not responsive). Field names + behavior confirmed against
+// class-astra-social-component-dynamic-css.php on 2026-09-27.
+$settings['footer-social-1-size']     = array('desktop' => '20', 'tablet' => '', 'mobile' => '');
+$settings['footer-social-1-space']    = array('desktop' => '15', 'tablet' => '', 'mobile' => '');
+$settings['footer-social-1-bg-space'] = 6;
+
+// Icon shape (fully round) — this is a box-model field (radius-fields),
+// not the plain 'footer-social-1-radius' key, which is unused/vestigial
+// and produces no CSS at all. Confirmed against the theme's dynamic-css
+// source (class-astra-social-component-dynamic-css.php) and by checking
+// the compiled page CSS on the test site on 2026-09-27.
+$settings['footer-social-1-radius-fields'] = array(
+    'desktop'      => array('top' => '50', 'right' => '50', 'bottom' => '50', 'left' => '50'),
+    'tablet'       => array('top' => '', 'right' => '', 'bottom' => '', 'left' => ''),
+    'mobile'       => array('top' => '', 'right' => '', 'bottom' => '', 'left' => ''),
+    'desktop-unit' => 'px', 'tablet-unit' => 'px', 'mobile-unit' => 'px',
+);
+
+// Bottom margin on tablet/mobile — matches the verified working config
+$settings['section-fb-social-icons-1-margin'] = array(
+    'desktop'      => array('top' => '', 'right' => '', 'bottom' => '', 'left' => ''),
+    'tablet'       => array('top' => '16', 'right' => '', 'bottom' => '40', 'left' => ''),
+    'mobile'       => array('top' => '', 'right' => '', 'bottom' => '40', 'left' => ''),
+    'desktop-unit' => 'px', 'tablet-unit' => 'px', 'mobile-unit' => 'px',
+);
+
+if (!isset($settings['footer-desktop-items']) || !isset($settings['footer-desktop-items']['primary'])) {
+    echo "footer-desktop-items/primary not found — skipping social icons placement\n";
+} else {
+    $primary = $settings['footer-desktop-items']['primary'];
+    if (!isset($primary['primary_3'])) { $primary['primary_3'] = array(); }
+    if (!in_array('social-icons-1', $primary['primary_3'], true)) {
+        $primary['primary_3'][] = 'social-icons-1';
+    }
+    $settings['footer-desktop-items']['primary'] = $primary;
+    echo "Social icons placed in footer primary_3\n";
+}
+
+update_option('astra-settings', $settings);
+PHPEOF
+wp eval-file /tmp/set-social-icons.php
+rm -f /tmp/set-social-icons.php
+log "Footer social icons configured (Facebook/Instagram/TikTok/YouTube/Twitter, hidden via empty URL until real profiles exist)"
+
+# ============================================================
 # LITESPEED CACHE
 # ============================================================
 section "Confirming LiteSpeed Cache"
