@@ -538,8 +538,11 @@ def build_uagb_separator(sep_id):
     )
 
 
-def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text="", is_last=False):
-    """H2 + wide image + paragraph + CTA + separator (one content block)."""
+def build_content_section_uagb(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text="", is_last=False):
+    """H2 + wide image + paragraph + CTA + separator (one content block) —
+    original Spectra/uagb version, kept during the Kadence migration for
+    comparison/rollback. See build_content_section_kadence for the converted
+    version; build_content_section below picks between them."""
     sec_id  = gen_id()
     head_id = gen_id()
     img_id  = gen_id()
@@ -595,6 +598,45 @@ def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quot
         f'<!-- /wp:uagb/call-to-action -->'
         f'{sep}</div>\n<!-- /wp:uagb/container -->'
     )
+
+
+def build_content_section_kadence(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text="", is_last=False):
+    """H2 + wide image + paragraph + CTA + separator — Kadence version.
+
+    The CTA (heading + description + button) uses the exact composition
+    verified live for the "no dedicated CTA block" gap: rowlayout > column >
+    advancedheading + core/paragraph + advancedbtn > singlebtn. The image
+    stays a plain <img> for the same reason as build_service_card_kadence —
+    kadence/image hasn't been verified live yet. The separator between
+    sections is left as the existing uagb/separator (not yet converted;
+    different block families coexist on a page without issue, already
+    confirmed this session by the uagb grid + kadence cards test)."""
+    sep_id = gen_id()
+    sep = '' if is_last else '\n' + build_uagb_separator(sep_id)
+
+    img_html = (
+        f'<img src="{img_url}" alt="{alt_text}" width="1024" height="478" '
+        f'loading="lazy" role="img" style="width:100%;height:auto;"/>'
+    )
+    section_inner = (
+        kadence_heading(h2, level=2)
+        + img_html
+        + f'<!-- wp:paragraph -->\n<p>{paragraph}</p>\n<!-- /wp:paragraph -->'
+        + kadence_heading(cta_title, level=3)
+        + f'<!-- wp:paragraph -->\n<p>{cta_desc}</p>\n<!-- /wp:paragraph -->'
+        + kadence_button("Get a Free Quote", free_quote_url, icon="fas_arrow-right",
+                          border_color="#333", border_radius=0)
+    )
+    return kadence_row(section_inner) + sep
+
+
+def build_content_section(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text="", is_last=False, use_kadence=False):
+    """H2 + wide image + paragraph + CTA + separator. use_kadence picks
+    between the original Spectra/uagb markup and the converted Kadence
+    markup — see the two implementations above."""
+    if use_kadence:
+        return build_content_section_kadence(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text, is_last)
+    return build_content_section_uagb(h2, paragraph, cta_title, cta_desc, img_url, free_quote_url, alt_text, is_last)
 
 
 def build_service_area_section(area_h2, area_paragraph, faq_h2, faq_block):
@@ -824,20 +866,21 @@ def build_individual_service_page(c, config, service="", city="", state=""):
 
     banner = build_banner(c["banner_h1"], c["banner_subtitle"], banner_cta_ref)
 
+    use_kadence = config.get("use_kadence", False)
     s1 = build_content_section(
         c["section1_h2"], c["section1_paragraph"],
         c["section1_cta_title"], c["section1_cta_desc"],
-        img_url_1, free_quote, alt_text
+        img_url_1, free_quote, alt_text, use_kadence=use_kadence
     )
     s2 = build_content_section(
         c["section2_h2"], c["section2_paragraph"],
         c["section2_cta_title"], c["section2_cta_desc"],
-        img_url_2, free_quote, alt_text
+        img_url_2, free_quote, alt_text, use_kadence=use_kadence
     )
     s3 = build_content_section(
         c["section3_h2"], c["section3_paragraph"],
         c["section3_cta_title"], c["section3_cta_desc"],
-        img_url_3, free_quote, alt_text
+        img_url_3, free_quote, alt_text, use_kadence=use_kadence
     )
     s4 = build_service_area_section(
         c["service_area_h2"], c["service_area_paragraph"],
