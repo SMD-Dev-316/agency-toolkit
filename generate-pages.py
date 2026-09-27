@@ -215,6 +215,72 @@ def kadence_info_box(title, desc, halign="left"):
     )
 
 
+def kadence_info_box_icon(title, desc, icon, title_level=5, icon_color=None, halign="center", icon_size=42):
+    """kadence/infobox with mediaType:"icon" (a genuinely different shape
+    from kadence_info_box's mediaType:"none" - used for icon-badge patterns
+    like the homepage's 4 trust badges, not just text-only info boxes).
+
+    Verified live (2026-09-27) via the real editor + a read-back of the
+    saved post_content, then cross-checked against the compiled FRONT-END
+    HTML (not just the editor's own saved shape):
+    - The icon is NOT a literal inline `<svg>` in the saved content the way
+      kadence_button's icon is - it's an empty placeholder span
+      (`<span data-name="{icon}" data-class="kt-info-svg-icon"
+      class="kadence-dynamic-icon"></span>`), which WordPress's own
+      render_callback expands into the real inline SVG at *view* time
+      (confirmed by pushing this saved shape to a real page and reading the
+      compiled front-end HTML, which showed a fully different, expanded
+      `<span class="kb-svg-icon-wrap kb-svg-icon-{icon} kt-info-svg-icon">
+      <svg>...</svg></span>`). This means the empty placeholder is exactly
+      what belongs in saved content (matches how every other dynamic Kadence
+      block already works in this codebase) - do not try to hand-write the
+      literal SVG.
+    - Icon slugs are NOT all `fas_*` (Font Awesome) the way kadence_button's
+      icons are - the info box's icon picker mixes multiple icon families,
+      and which prefix a given icon resolves to has to be read back per-icon,
+      not assumed. Confirmed this session: check=`ic_check`,
+      clock(-rotate)=`fas_clock` (Kadence has no exact "clock-rotate-left"
+      icon in its bundled set - `fas_clock` is the closest available,
+      not a byte-for-byte icon match), bolt=`ic_bolt`, star=`ic_star`.
+    - The title's heading level (h1-h6) is a real `titleFont[0].level` JSON
+      attribute here - unlike kadence_info_box's title, which has no level
+      attribute at all and is always a literal `<h2>` regardless of any
+      JSON. Both are still HTML-sourced for their actual text content.
+    """
+    box_id = gen_id()
+    media_icon = {
+        "icon": icon, "size": icon_size, "unit": "px", "width": 2, "title": "",
+        "color": icon_color or "", "hoverColor": "", "hoverAnimation": "none",
+        "flipIcon": "", "tabletSize": "", "mobileSize": "",
+    }
+    title_font = {
+        "level": title_level, "size": ["", "", ""], "sizeType": "px", "lineHeight": ["", "", ""],
+        "lineType": "px", "letterSpacing": "", "textTransform": "", "family": "", "google": False,
+        "style": "", "weight": "", "variant": "", "subset": "", "loadGoogle": True,
+        "padding": ["", "", "", ""], "paddingControl": "linked", "margin": ["", "", "", ""],
+        "marginControl": "individual", "paddingUnit": "px", "marginUnit": "px",
+    }
+    attrs = {
+        "uniqueID": box_id, "hAlign": halign, "mediaIcon": [media_icon],
+        "titleFont": [title_font], "kbVersion": 2,
+    }
+    attrs_json = json.dumps(attrs, ensure_ascii=False, separators=(",", ":"))
+    return (
+        f"<!-- wp:kadence/infobox {attrs_json} -->\n"
+        f'<div class="wp-block-kadence-infobox kt-info-box{box_id}">'
+        f'<span class="kt-blocks-info-box-link-wrap info-box-link kt-blocks-info-box-media-align-top kt-info-halign-{halign}">'
+        f'<div class="kt-blocks-info-box-media-container"><div class="kt-blocks-info-box-media kt-info-media-animate-none">'
+        f'<div class="kadence-info-box-icon-container kt-info-icon-animate-none"><div class="kadence-info-box-icon-inner-container">'
+        f'<span data-name="{icon}" data-class="kt-info-svg-icon" class="kadence-dynamic-icon"></span>'
+        f"</div></div></div></div>"
+        f'<div class="kt-infobox-textcontent">'
+        f'<h{title_level} class="kt-blocks-info-box-title">{title}</h{title_level}>'
+        f'<p class="kt-blocks-info-box-text">{desc}</p>'
+        f"</div></span></div>\n"
+        f"<!-- /wp:kadence/infobox -->"
+    )
+
+
 def kadence_testimonial(quote, name=None, occupation=None, rating=None,
                          image_url=None, image_id=None, image_alt=""):
     """kadence/testimonials (plural wrapper, carries the shared rating-icon
@@ -2542,26 +2608,29 @@ def build_homepage(cfg, wp_path):
     )
     content = content.replace(_old_summary_blk, _new_summary_blk, 1)
 
-    # About section image — target only block 18d94f78 (not the 4 trust badge blocks
-    # which share the same placeholder; those stay as-is until trust badge images are ready)
-    about_marker = '<!-- wp:uagb/image {"block_id":"18d94f78"'
-    about_start  = content.find(about_marker)
-    if about_start >= 0:
-        _end_tag  = "<!-- /wp:uagb/image -->"
-        about_end = content.find(_end_tag, about_start) + len(_end_tag)
-        chunk = content[about_start:about_end]
-        chunk = chunk.replace(
-            f"{old_base}/placeholder-image-rectangle-2",
-            f"{rar_base}home-about-{niche_slug}-01"
-        )
-        # Fix extension: the new file is .jpg, sized variants now share the same .jpg
-        chunk = chunk.replace(
-            f"home-about-{niche_slug}-01-1024x683.png", f"home-about-{niche_slug}-01.jpg"
-        )
-        chunk = chunk.replace(
-            f"home-about-{niche_slug}-01.png", f"home-about-{niche_slug}-01.jpg"
-        )
-        content = content[:about_start] + chunk + content[about_end:]
+    # About section image — a plain literal-text replace (not scoped to any
+    # particular block) is safe here: the summary section above already
+    # consumed its own occurrence of this exact placeholder URL by this
+    # point (summary's substitution runs first), so only the about
+    # section's occurrence remains in `content` by the time this runs,
+    # regardless of whether it's wrapped in the original wp:uagb/image
+    # block or the Kadence template's plain <img> (2026-09-27: simplified
+    # from a block_id-anchored chunk-replace to this once the Kadence
+    # version stopped using a wp:uagb/image wrapper at all - the trust
+    # badges were never actually part of this substitution's scope despite
+    # what an earlier comment here claimed; confirmed via a fresh grep of
+    # the original template, they use icons, not this placeholder image).
+    content = content.replace(
+        f"{old_base}/placeholder-image-rectangle-2",
+        f"{rar_base}home-about-{niche_slug}-01"
+    )
+    # Fix extension: the new file is .jpg, sized variants now share the same .jpg
+    content = content.replace(
+        f"home-about-{niche_slug}-01-1024x683.png", f"home-about-{niche_slug}-01.jpg"
+    )
+    content = content.replace(
+        f"home-about-{niche_slug}-01.png", f"home-about-{niche_slug}-01.jpg"
+    )
 
     # Parallax background — replace all WP-sized variants
     parallax_old = f"{old_base}/placeholder-wide-narrow-2"
