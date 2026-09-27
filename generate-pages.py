@@ -2464,11 +2464,22 @@ def _cfg_state_full(cfg):
 
 def build_homepage(cfg, wp_path):
     """
-    Loads templates/homepage.html, applies config substitutions, and pushes
-    the result to the homepage (page ID 66 or cfg['homepage_id']).
+    Loads templates/homepage.html (or templates/homepage-kadence.html when
+    cfg["use_kadence"] is set), applies config substitutions, and pushes the
+    result to the homepage (page ID 66 or cfg['homepage_id']).
+
+    The Kadence template is being converted section-by-section (see the
+    Kadence migration roadmap) - as of 2026-09-27 only the hero + credentials
+    bar are converted, the rest is still identical uagb markup shared with
+    the original file. Every substitution step below operates on plain
+    literal text (not on markup structure) unless noted otherwise, so it
+    keeps working unchanged against whichever template loaded here - the
+    Kadence hero section was deliberately built keeping every literal string
+    identical to the original for exactly this reason.
     """
-    toolkit   = "/var/www/agency-toolkit"
-    tmpl_path = os.path.join(toolkit, "templates", "homepage.html")
+    toolkit    = "/var/www/agency-toolkit"
+    tmpl_name  = "homepage-kadence.html" if cfg.get("use_kadence", False) else "homepage.html"
+    tmpl_path  = os.path.join(toolkit, "templates", tmpl_name)
 
     with open(tmpl_path, "r") as f:
         content = f.read()
