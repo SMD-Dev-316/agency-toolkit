@@ -1,0 +1,50 @@
+{
+  "niche": "Junk Removal Services",
+  "brand_name": "Test Kadence Co",
+  "site_url": "https://tst01.web-samples.com",
+  "wp_path": "/var/www/tst01.web-samples.com",
+  "phone": "(555) 123-4567",
+  "free_quote_url": "/free-quote/",
+  "sidebar_block_ref": 13,
+  "banner_cta_ref": 14,
+  "contact_block_ref": 15,
+  "contact_form_id": "1",
+  "placeholder_image_wide": "https://tst01.web-samples.com/wp-content/uploads/placeholder-wide-narrow.jpg",
+  "placeholder_image_rect": "https://tst01.web-samples.com/wp-content/uploads/placeholder-image-rectangle.png",
+  "primary_city": "Clarksville",
+  "primary_state": "IN",
+  "primary_service_name": "Junk Removal",
+  "homepage_id": 6,
+  "rar_image_base": "https://tst01.web-samples.com/wp-content/uploads/",
+  "use_kadence": true,
+  "services": [
+    "Junk Removal",
+    "Furniture Removal"
+  ],
+  "cities": [
+    {
+      "city": "Clarksville",
+      "state": "IN",
+      "county": "Clark County",
+      "nearby": ["Jeffersonville", "New Albany", "Sellersburg", "Charlestown"],
+      "is_primary": true
+    },
+    {
+      "city": "Jeffersonville",
+      "state": "IN",
+      "county": "Clark County",
+      "nearby": ["Clarksville", "New Albany", "Sellersburg", "Charlestown"],
+      "is_primary": false
+    }
+  ],
+  "service_images": {
+    "junk-removal": {
+      "wide": ["placeholder-wide-narrow.jpg", "placeholder-wide-narrow.jpg", "placeholder-wide-narrow.jpg"],
+      "rect": "placeholder-image-rectangle.png"
+    },
+    "furniture-removal": {
+      "wide": ["placeholder-wide-narrow.jpg", "placeholder-wide-narrow.jpg", "placeholder-wide-narrow.jpg"],
+      "rect": "placeholder-image-rectangle.png"
+    }
+  }
+}

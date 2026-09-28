@@ -1040,10 +1040,26 @@ def build_service_card_kadence(service_name, description, service_url, img_url, 
     WordPress renders raw HTML outside any block comment fine (classic/
     freeform content), so this avoids guessing at an unverified block shape.
 
-    The 33%-wide flex-child sizing is preserved via kadence_row's
-    flex_basis_percent, since the grid parent this drops into
-    (build_city_overview_page / build_homepage's card loop) is still the old
-    uagb/container(layout:flex) ‚Äî not yet converted in this pass.
+    No flex_basis_percent sizing wrapper: this card always drops into
+    _build_card_grid_kadence's plain CSS Grid (every call site pipes its
+    cards through _build_card_grid), never a flex parent. Confirmed live
+    (2026-09-28) that the flex_basis_percent wrapper's `max-width:33%` is
+    NOT inert outside a flex context the way its `flex:` half is - CSS
+    max-width percentages resolve against the containing block regardless
+    of display mode, so it silently capped every card to 33% of its own
+    grid track's width (e.g. a 460px track shrunk to a ~152px card) even
+    though the flex property itself did nothing. This was wrongly assessed
+    as "harmless but inert" earlier in the migration - only the flex-*
+    properties are actually inert in a grid context, not max-width.
+
+    The "Learn More" button's background was originally
+    var(--ast-global-color-5), which is white in this palette - the same
+    white as the button's own #ffffff text color, making the label
+    invisible. Fixed to var(--ast-global-color-1) (navy), matching the
+    already-verified white-on-navy pattern used by the homepage hero
+    buttons. Caught (2026-09-28) by checking each button's actual computed
+    text/background color on the live page, not just that the button
+    markup existed.
     """
     img_html = (
         f'<img src="{img_url}" alt="{alt_text}" title="{esc(service_name)}" '
@@ -1054,12 +1070,12 @@ def build_service_card_kadence(service_name, description, service_url, img_url, 
     button_html = kadence_button(
         "Learn More", service_url,
         icon="fas_chevron-right", icon_side="right",
-        color="#ffffff", background="var(--ast-global-color-5)",
+        color="#ffffff", background="var(--ast-global-color-1)",
         color_hover="var(--ast-global-color-1)", background_hover="var(--ast-global-color-7)",
         border_radius=30, padding=(7, 10, 7, 13),
     )
     card_inner = img_html + info_box_html + button_html
-    return kadence_row(card_inner, flex_basis_percent=33)
+    return kadence_row(card_inner)
 
 
 def build_service_card(service_name, description, service_url, img_url, alt_text="", use_kadence=False):
@@ -2044,18 +2060,28 @@ def _build_landing_card_kadence(icon, heading, desc, link, icon_color=None):
     h3 - same accepted tradeoff as build_service_card_kadence, since
     kadence/infobox always sources its title from a hardcoded h2 tag).
 
-    The button reuses the exact color/hover mapping already established for
-    build_service_card_kadence's "Learn More" button (iconColor's value
-    doubling as the button's own background - background var ast-5, hover
-    swap to ast-7/ast-1). The padding tuple here is (7,10,7,13), confirmed
+    The button reuses the color/hover mapping established for
+    build_service_card_kadence's "Learn More" button - white text (#ffffff)
+    on a var(--ast-global-color-1) (navy) background, hover to color-7
+    (gold) background with color-1 text. Originally shipped with
+    background:var(--ast-global-color-5) (white) instead of color-1 -
+    since color-5 IS white in this palette, that made the white button
+    text invisible against its own background; caught live (2026-09-28)
+    by checking each button's actual computed text/background color, not
+    just that the markup was present. Fixed in both functions together.
+    The padding tuple here is (7,10,7,13), confirmed
     live (2026-09-27) to be [top,right,bottom,left] order - matching the
     original's topPadding7/rightPadding10/bottomPadding7/leftPadding13
     exactly (see the separately-flagged task for the swapped-order bug this
     same check found in the already-shipped build_service_card_kadence).
 
-    Still drops into the still-uagb _build_card_grid parent (not yet
-    converted) via the same flex_basis_percent=33 sizing wrapper already
-    proven to work in that exact parent context by build_service_card_kadence.
+    No flex sizing wrapper: drops into _build_card_grid_kadence's plain CSS
+    Grid, not a flex parent, same fix and same reasoning as
+    build_service_card_kadence (2026-09-28) - a hand-rolled
+    `<div style="flex:0 0 33%;max-width:33%;">` wrapper here silently
+    capped every card to 33% of its own grid track's width, since
+    max-width (unlike the flex-* properties) is not inert outside a flex
+    context.
     """
     row_id = gen_id()
     card_col_id = gen_id()
@@ -2092,7 +2118,7 @@ def _build_landing_card_kadence(icon, heading, desc, link, icon_color=None):
     button_html = kadence_button(
         "Learn More", link,
         icon="fas_chevron-right", icon_side="right",
-        color="#ffffff", background="var(--ast-global-color-5)",
+        color="#ffffff", background="var(--ast-global-color-1)",
         color_hover="var(--ast-global-color-1)", background_hover="var(--ast-global-color-7)",
         border_radius=30, padding=(7, 10, 7, 13),
     )
@@ -2109,14 +2135,12 @@ def _build_landing_card_kadence(icon, heading, desc, link, icon_color=None):
     card_col_attrs_json = json.dumps(card_col_attrs, ensure_ascii=False, separators=(",", ":"))
     card_inner = icon_box_html + info_box_html + button_html
     return (
-        f'<div style="flex:0 0 33%;max-width:33%;">'
         f'<!-- wp:kadence/rowlayout {{"uniqueID":"{row_id}","columns":1,"colLayout":"equal","kbVersion":2}} -->\n'
         f'<!-- wp:kadence/column {card_col_attrs_json} -->\n'
         f'<div class="wp-block-kadence-column kadence-column{card_col_id}">'
         f'<div class="kt-inside-inner-col">{card_inner}</div></div>\n'
         f'<!-- /wp:kadence/column -->\n'
         f'<!-- /wp:kadence/rowlayout -->'
-        f'</div>'
     )
 
 
@@ -3392,7 +3416,7 @@ def main():
         config = json.load(f)
     config["use_kadence"] = args.use_kadence
     if args.use_kadence:
-        warn("Using Kadence blocks (--use-kadence) — only build_service_card is converted so far; everything else still emits Spectra/uagb blocks on the same page")
+        warn("Using Kadence blocks (--use-kadence) — migration complete for all page builders as of 2026-09-27; the only remaining stand-in is plain <img> tags in place of a real kadence/image block (unverified but renders fine)")
 
     cache = _load_cache(args.config) if not args.dry_run else None
 
